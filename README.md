@@ -2,10 +2,10 @@
 
 The Non-Graphical Antivirus Solution for Mac OS X
 
-I wrote this as a free alternative to the excellent
-[ClamXav](https://www.clamxav.com/){:target="_blank"}.  MacClam sets up real-time
-directory monitoring and schedules periodic scans.  It uses
-[ClamAV](http://www.clamav.net/) as an AntiVirus engine and
+I wrote this as a free alternative to the excellent <a
+href="https://www.clamxav.com/" target="_blank">ClamAV</a>.  MacClam
+sets up real-time directory monitoring and schedules periodic scans.
+It uses [ClamAV](http://www.clamav.net/) as an AntiVirus engine and
 [fswatch](https://github.com/emcrisostomo/fswatch) to monitor
 directories for changed files, which are then sent to clamd for
 scanning.  It also provides a way to scan individual files or
