@@ -339,8 +339,7 @@ fi #end if [ -t 0 ]
 echo "Updating crontab"
 crontab <(cat <(crontab -l|sed '/# BEGIN MACCLAM/,/# END MACCLAM/d;/MacClam/d'); echo "# BEGIN MACCLAM
 $CRONTAB
-# END MACCLAM
-")
+# END MACCLAM")
 
 echo
 echo "--------------------------"
