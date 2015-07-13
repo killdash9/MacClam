@@ -62,6 +62,7 @@ CRONTAB='
 
 set -e
 
+chmod +x "$SCRIPTPATH"
 test -d "$INSTALLDIR" || { echo "Creating installation directory $INSTALLDIR"; mkdir -p $INSTALLDIR; }
 
 CLAMAV_INS="$INSTALLDIR/clamav-installation-`cat $INSTALLDIR/clamav.ver || true`"
