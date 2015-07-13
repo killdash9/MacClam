@@ -12,6 +12,12 @@ target="_blank">fswatch</a> to monitor directories for changed files,
 which are then sent to clamd for scanning.  It also provides a way to
 scan individual files or directories on demand from the command line.
 
+## Prerequisites ##
+
+You will need to have <a
+href="https://developer.apple.com/library/ios/technotes/tn2339/_index.html">Xcode
+command line tools</a> installed.
+
 ## Installation ##
 
 Installation is very simple.  In a bash shell, type
@@ -20,12 +26,12 @@ Installation is very simple.  In a bash shell, type
     chmod +x MacClam.sh
     ./MacClam.sh
 
-This will bootstrap by installing the lastest versions of ClamAV and
-fswatch.  Using crontab, it will schedule a full file system scan once
-a week and check for signatures once a day.  It also sets up live
-monitoring for the $HOME and /Applications directories.  Each of these
-things can be configured by modifying script variables and running it
-again.
+This will bootstrap by building the lastest versions of ClamAV and
+fswatch from source.  Using crontab, it will schedule a full file
+system scan once a week and check for signatures once a day.  It also
+sets up live monitoring for the $HOME and /Applications directories.
+Each of these things can be configured by modifying script variables
+and re-running the script.
 
 ## Usage ##
 
