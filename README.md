@@ -14,7 +14,7 @@ scan individual files or directories on demand from the command line.
 
 ## Prerequisites ##
 
-You will need to have <a
+You will need to have Apple's <a
 href="https://developer.apple.com/library/ios/technotes/tn2339/_index.html">Xcode
 command line tools</a> installed.
 
