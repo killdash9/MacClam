@@ -16,7 +16,8 @@ scan individual files or directories on demand from the command line.
 
 You will need to have Apple's <a
 href="https://developer.apple.com/library/ios/technotes/tn2339/_index.html">Xcode
-command line tools</a> installed.
+command line tools</a> installed.  I have tested it on Yosemite, but
+it may also work on other versions of OS X.
 
 ## Installation ##
 
@@ -32,6 +33,12 @@ once a week and update signatures once a day.  It also sets up live
 monitoring for the $HOME and /Applications directories.  Each of these
 things can be configured by modifying script variables and re-running
 the script.
+
+By default, the installation directory is `~/MacClam`.  This directory
+contains all the source, binaries, log files, and quarantine folder.
+The only artifact of the installation outside this directory is the
+crontab.  MacClam can be totally uninstalled up by running
+`./MacClam.sh uninstall`.
 
 ## Usage ##
 
@@ -77,4 +84,7 @@ MacClam performs three types of scans:
 2. Scheduled scanning: MacClam will perform recursive scans of
    directories at scheduled times.
 3. On-demand scanning: Running `MacClam.sh` with one or more file or
-   directory arguments will scan the files or directories specified.
+directory arguments will scan the files or directories specified.
+
+In all cases, when a virus is found, it is moved to the quarantine
+folder.
