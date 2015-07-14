@@ -16,8 +16,8 @@ scan individual files or directories on demand from the command line.
 
 You will need to have Apple's <a
 href="https://developer.apple.com/library/ios/technotes/tn2339/_index.html">Xcode
-command line tools</a> installed.  I have tested it on Yosemite, but
-it may also work on other versions of OS X.
+command line tools</a> installed.  I have tested MacClam on Yosemite,
+but it may also work on other versions of OS X.
 
 ## Installation ##
 
@@ -47,7 +47,7 @@ crontab.  MacClam can be totally uninstalled up by running
 * Builds clamd and fswatch from source if needed
 * Sets up regular signature updates and full scans in crontab
 * Updates clamd signatures
-* Starts live monitoring services clamd and fswatch if not already running
+* Starts active monitoring services clamd and fswatch if not already running
 * Registers live monitoring to run on startup (also done in crontab)
 
 `./MacClam.sh /path/file_or_directory ...`
@@ -78,13 +78,16 @@ necessary.
 
 MacClam performs three types of scans:
 
-1. Live scanning: MacClam will monitor any directories you specify for
-   activity.  When a file is changed or created, it will be scanned
-   immediately.
+1. Active monitoring: MacClam will monitor any directories you specify
+   for activity.  When a file is changed or created, it will be
+   scanned immediately.  By default, the $HOME and Applications
+   directories are monitored.
 2. Scheduled scanning: MacClam will perform recursive scans of
-   directories at scheduled times.
+   directories at scheduled times.  By default, the entire hard drive
+   is scanned once a week.
 3. On-demand scanning: Running `MacClam.sh` with one or more file or
-directory arguments will scan the files or directories specified.
+   directory arguments will scan the files or directories specified.
 
 In all cases, when a virus is found, it is moved to the quarantine
-folder.
+folder.  For active monitoring, when a virus is identified, a brief
+graphical notification is shown in the top-right corner.
