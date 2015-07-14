@@ -59,9 +59,9 @@ script, and then running the script again to apply your changes.
 
 ## Design Principle ##
 
-The script is designed to have a very simple interface -- one command
-to do everything.  The command is idempotent, meaning that re-running
-the command will do nothing if everything is set up correctly and
+MacClam.sh is designed to have a very simple interface -- one command
+to do everything.  It is idempotent, meaning that re-running
+MacClam.sh will do nothing if everything is set up correctly and
 services are running.  If there are changes in the configuration
 variables, it will make sure they are applied, and restart services as
 necessary.
