@@ -26,18 +26,30 @@ Installation is very simple.  In a bash shell, type
     chmod +x MacClam.sh
     ./MacClam.sh
 
-This will bootstrap by building the lastest versions of ClamAV and
-fswatch from source.  Using crontab, it will schedule a full file
-system scan once a week and check for signatures once a day.  It also
-sets up live monitoring for the $HOME and /Applications directories.
-Each of these things can be configured by modifying script variables
-and re-running the script.
+This will bootstrap MacClam by building the lastest versions of ClamAV
+and fswatch from source.  It will schedule a full file system scan
+once a week and update signatures once a day.  It also sets up live
+monitoring for the $HOME and /Applications directories.  Each of these
+things can be configured by modifying script variables and re-running
+the script.
 
 ## Usage ##
 
-Run `./MacClam.sh` with no arguments at any time to check for updates to
-software or virus signatures.  Run it with file or directory arguments
-to manually scan those files or directories.
+`./MacClam.sh` does the following:
+
+* Builds clamd and fswatch from source if needed
+* Schedules regular signature updates and full scans in crontab
+* Updates clamd signatures
+* Starts live monitoring services clamd and fswatch if not already running
+
+`./MacClam.sh /path/to/file_or_directory`
+
+Does everything previously listed, and then runs clamscan on the given
+file or directory.
+
+`./MacClam.sh uninstall`
+
+Uninstalls MacClam.
 
 ## Customization ##
 
@@ -53,6 +65,3 @@ the command will do nothing if everything is set up correctly and
 services are running.  If there are changes in the configuration
 variables, it will make sure they are applied, and restart services as
 necessary.
-
-## TODO ##
-* "Run on Startup" functionality
