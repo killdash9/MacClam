@@ -18,10 +18,19 @@ popd > /dev/null
 # 3) Installs a crontab that invokes this same script once a day to
 # check for virus definition updates, and once a week to perform a
 # full system scan.  These scheduled times can be customized by
-# editing the CRONTAB variable below.
+# editing the CRONTAB variable below.  The crontab also sechedules
+# MacClam to run on startup.
 #
-# You can customize these variables to suite your tastes.  If you
-# change them, run this script to apply your settings.
+# If you pass one or more arguments to this file, all of the above
+# steps are performed.  In addition, each of the arguments passed in
+# will be interpreted as a file or directory to be scanned.
+#
+# To uninstall MacClam.sh, run `MacClam.sh uninstall'.
+#
+# You can customize the following variables to suite your tastes.  If
+# you change them, run this script again to apply your settings.
+# 
+
 
 INSTALLDIR="$HOME/MacClam"
 

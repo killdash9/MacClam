@@ -38,14 +38,15 @@ the script.
 `./MacClam.sh` does the following:
 
 * Builds clamd and fswatch from source if needed
-* Schedules regular signature updates and full scans in crontab
+* Sets up regular signature updates and full scans in crontab
 * Updates clamd signatures
 * Starts live monitoring services clamd and fswatch if not already running
+* Registers live monitoring to run on startup (also done in crontab)
 
-`./MacClam.sh /path/to/file_or_directory`
+`./MacClam.sh /path/file_or_directory ...`
 
-Does everything previously listed, and then runs clamscan on the given
-file or directory.
+Does everything previously listed, and then runs clamscan on the files
+or directories.  Multiple files or directories can be specified.
 
 `./MacClam.sh uninstall`
 
@@ -65,3 +66,15 @@ MacClam.sh will do nothing if everything is set up correctly and
 services are running.  If there are changes in the configuration
 variables, it will make sure they are applied, and restart services as
 necessary.
+
+## Virus Scans ##
+
+MacClam performs three types of scans:
+
+1. Live scanning: MacClam will monitor any directories you specify for
+   activity.  When a file is changed or created, it will be scanned
+   immediately.
+2. Scheduled scanning: MacClam will perform recursive scans of
+   directories at scheduled times.
+3. On-demand scanning: Running `MacClam.sh` with one or more file or
+   directory arguments will scan the files or directories specified.
