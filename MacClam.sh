@@ -46,36 +46,77 @@ EXCLUDE_FILE_PATTERNS=(
 QUARANTINE_DIR="$INSTALLDIR/quarantine"
 
 # Log file directory
-MACCLAM_LOG_DIR=/var/log/MacClam
+MACCLAM_LOG_DIR="$INSTALLDIR/log"
 CRON_LOG="$MACCLAM_LOG_DIR/cron.log"
 SENTRY_LOG="$MACCLAM_LOG_DIR/sentry.log"
 CLAMD_LOG="$MACCLAM_LOG_DIR/clamd.log"
 
 CRONTAB='
-#Check for updates
-0 * * * * '$SCRIPTPATH' >> '$CRON_LOG' 2>&1 
+#Start everything up at reboot
+@reboot '$SCRIPTPATH' >> '$CRON_LOG' 2>&1 
+
+#Check for updates daily
+@daily  '$SCRIPTPATH' >> '$CRON_LOG' 2>&1 
 
 #Scheduled scan, every Sunday morning at 00:00.
-0 0 * * 0 '$SCRIPTPATH' / >> '$CRON_LOG' 2>&1 
+@weekly '$SCRIPTPATH' / >> '$CRON_LOG' 2>&1 
 '
 # End of customizable variables
 
 set -e
 
+if [ "$1" == "uninstall" ]
+then
+    read -r -p "Are you sure you want to install MacClam? [y/N] " response
+    if [[ $response =~ ^([yY][eE][sS]|[yY])$ ]]
+    then
+        echo "Uninstalling MacClam"
+        echo "Stopping services"
+        sudo killall clamd fswatdh || true
+        echo "Uninstalling from crontab"
+        crontab <(cat <(crontab -l|sed '/# BEGIN MACCLAM/,/# END MACCLAM/d;/MacClam/d'));
+        if [ -d $QUARANTINE_DIR ]
+        then
+            echo "Moving $QUARANTINE_DIR to $HOME/MacClam_quarantine in case there's something you want in there."
+            if [ -d $HOME/MacClam_quarantine ]
+            then
+                mv $QUARANTINE_DIR/* $HOME/MacClam_quarantine
+            else
+                mv $QUARANTINE_DIR $HOME/MacClam_quarantine
+            fi
+        fi
+        echo "Deleting installation directory $INSTALLDIR"
+        sudo rm -rf $INSTALLDIR
+        echo "Uninstall complete.  Sorry to see you go!"
+    else
+        echo "Uninstall cancelled"
+    fi
+    exit
+fi
+
+
+echo
+echo "--------------------------------------------------"
+echo " Starting MacClam.sh `date`"
+echo "--------------------------------------------------"
+echo
+
 chmod +x "$SCRIPTPATH"
+
 test -d "$INSTALLDIR" || { echo "Creating installation directory $INSTALLDIR"; mkdir -p $INSTALLDIR; }
+test -d "$MACCLAM_LOG_DIR" || { echo "Creating log directory $MACCLAM_LOG_DIR"; mkdir -p $MACCLAM_LOG_DIR; }
+test -d "$QUARANTINE_DIR" || { echo "Creating quarantine directory $QUARANTINE_DIR"; mkdir -p $QUARANTINE_DIR; }
+test -f "$INSTALLDIR/clamav.ver" && CLAMAV_INS="$INSTALLDIR/clamav-installation-`cat $INSTALLDIR/clamav.ver`"
 
-CLAMAV_INS="$INSTALLDIR/clamav-installation-`cat $INSTALLDIR/clamav.ver || true`"
-
-FSWATCH_INS="$INSTALLDIR/fswatch-installation-`cat $INSTALLDIR/fswatch.ver || true`"
+test -f "$INSTALLDIR/fswatch.ver" && FSWATCH_INS="$INSTALLDIR/fswatch-installation-`cat $INSTALLDIR/fswatch.ver`"
 
 if [ -t 0 ] #don't do this when we're run from cron
 then
     
 echo
-echo "------------------"
-echo "Verifying software"
-echo "------------------"
+echo "--------------------"
+echo " Verifying software"
+echo "--------------------"
 echo
 echo -n "What is the latest version of clamav?..."
 
@@ -182,25 +223,46 @@ then
     #sudo touch $CLAMAV_INS/share/clamav/freshclam.log 
     #sudo chmod a+rw $CLAMAV_INS/share/clamav/freshclam.log
     sudo chmod u+s $CLAMAV_INS/sbin/clamd
+else
+    echo "Yes"
+fi
 
-    sudo cat $CLAMAV_INS/etc/clamd.conf.sample |  sed "
+CLAMD_CONF="$CLAMAV_INS/etc/clamd.conf"
+FRESHCLAM_CONF="$CLAMAV_INS/etc/freshclam.conf"
+
+echo -n "Is clamd.conf up to date?..."
+TMPFILE=`mktemp -dt "MacClam"`/clamd.conf
+sed "
 /^Example/d
 \$a\\
 LogFile $CLAMD_LOG\\
 LocalSocket /tmp/clamd.socket\\
-" | sudo tee $CLAMAV_INS/etc/clamd.conf > /dev/null
+" $CLAMD_CONF.sample > $TMPFILE
+if cmp -s "$TMPFILE" "$CLAMD_CONF" 
+then
+    echo Yes
+else
+    echo "No.  Updating $CLAMD_CONF"
+    sudo cp "$TMPFILE" "$CLAMD_CONF"
+fi
+rm "$TMPFILE"
 
-
-    sudo cat $CLAMAV_INS/etc/freshclam.conf.sample |  sed "
+echo -n "Is freshclam.conf up to date?..."
+TMPFILE=`mktemp -dt "MacClam"`/freshclam.conf
+sed "
 /^Example/d
 \$a\\
-NotifyClamd $CLAMAV_INS/etc/clamd.conf\\
+NotifyClamd $CLAMD_CONF\\
 MaxAttempts 1\\
-" | sudo tee $CLAMAV_INS/etc/freshclam.conf > /dev/null
-
+" $FRESHCLAM_CONF.sample > $TMPFILE
+if cmp -s "$TMPFILE" "$FRESHCLAM_CONF" 
+then
+    echo Yes
 else
-    echo "Yes"
+    echo "No. Updating $FRESHCLAM_CONF"
+    sudo cp "$TMPFILE" "$FRESHCLAM_CONF"
 fi
+rm "$TMPFILE"
 
 echo -n "What is the latest version of fswatch?..."
 FSWATCH_DOWNLOAD_LINK=https://github.com`curl -L -s 'https://github.com/emcrisostomo/fswatch/releases/latest'| grep "/emcrisostomo/fswatch/releases/download/.*tar.gz"|sed 's,.*href *= *"\([^"]*\).*,\1,'`
@@ -276,65 +338,30 @@ else
 
 fi
 
-
-mkdir -p $QUARANTINE_DIR
-
 echo Creating scaniffile
 #if [ -f \"\$1\" ]
 #then
-#output=\`$CLAMAV_INS/bin/clamdscan --config-file=$CLAMAV_INS/etc/clamd.conf --move=$INSTALLDIR/quarantine \"\$1\"\`
+#output=\`$CLAMAV_INS/bin/clamdscan --config-file=$CLAMD_CONF --move=$INSTALLDIR/quarantine \"\$1\"\`
 #case \$? in 
 #1) osascript -e \"display notification \\\"\$output\\\" with title \\\"ClamAV\\\"\";;
 #2) osascript -e \"display notification \\\"Active monitor exiting because clamd is not running\\\" with title \\\"ClamAV\\\"\";;
 #test \$? == \"1\" && 
 #fi
 
-
 echo "#this is invoked by fswatch.  It scans if its argument is a file
 if [ -f \"\$1\" ]
 then
-  output=\`\"$CLAMAV_INS/bin/clamdscan\" -v --config-file=\"$CLAMAV_INS/etc/clamd.conf\" --move=\"$QUARANTINE_DIR\" --no-summary \"\$1\"\`
+  output=\`\"$CLAMAV_INS/bin/clamdscan\" -v --config-file=\"$CLAMD_CONF\" --move=\"$QUARANTINE_DIR\" --no-summary \"\$1\"\`
   echo \"\$output\"
   test \$? == \"1\" && osascript -e \"display notification \\\"\$output\\\" with title \\\"ClamAV\\\"\"
 fi
 " > $INSTALLDIR/scaniffile
 chmod +x $INSTALLDIR/scaniffile
 
-#Set up log files
-echo -n "Does $CRON_LOG exist?..."
-if [ -f $CRON_LOG ]
-then
-    echo "Yes"
-else
-    echo "No.  Creating it."
-    sudo mkdir -p `dirname $CRON_LOG`
-    sudo touch $CRON_LOG
-    sudo chown `id -un` $CRON_LOG
-fi
-
-echo -n "Does $CLAMD_LOG exist?..."
-if [ -f $CLAMD_LOG ]
-then
-    echo "Yes"
-else
-    echo "No.  Creating it."
-    sudo mkdir -p `dirname $CLAMD_LOG`
-    sudo touch $CLAMD_LOG
-    sudo chown `id -un` $CLAMD_LOG
-fi
-
-echo -n "Does $SENTRY_LOG exist?..."
-if [ -f $SENTRY_LOG ]
-then
-    echo "Yes"
-else
-    echo "No.  Creating it."
-    sudo mkdir -p `dirname $SENTRY_LOG`
-    sudo touch $SENTRY_LOG
-    sudo chown `id -un` $SENTRY_LOG
-fi
-
 fi #end if [ -t 0 ] 
+
+CLAMD_CONF="$CLAMAV_INS/etc/clamd.conf"
+FRESHCLAM_CONF="$CLAMAV_INS/etc/freshclam.conf"
 
 echo "Updating crontab"
 crontab <(cat <(crontab -l|sed '/# BEGIN MACCLAM/,/# END MACCLAM/d;/MacClam/d'); echo "# BEGIN MACCLAM
@@ -342,20 +369,20 @@ $CRONTAB
 # END MACCLAM")
 
 echo
-echo "--------------------------"
-echo "Updating ClamAV Signatures"
-echo "--------------------------"
+echo "----------------------------"
+echo " Updating ClamAV Signatures"
+echo "---------------------------"
 echo
-$CLAMAV_INS/bin/freshclam --config-file=$CLAMAV_INS/etc/freshclam.conf || true
+$CLAMAV_INS/bin/freshclam --config-file=$FRESHCLAM_CONF || true
 
 echo
-echo "----------------"
-echo "Running Software"
-echo "----------------"
+echo "------------------"
+echo " Running Software"
+echo "------------------"
 echo
 echo -n Is clamd runnning?...
 
-CLAMD_CMD='$CLAMAV_INS/sbin/clamd --config-file=$CLAMAV_INS/etc/clamd.conf'
+CLAMD_CMD='$CLAMAV_INS/sbin/clamd --config-file=$CLAMD_CONF'
 if PID=`pgrep clamd`
 then
     echo Yes
@@ -425,3 +452,9 @@ then
         "$CLAMAV_INS/bin/clamscan" -r --exclude-dir="$QUARANTINE_DIR" "${EXCLUDE_DIR_PATTERNS[@]/#/--exclude-dir=}" "${EXCLUDE_FILE_PATTERNS[@]/#/--exclude=}" --move="$QUARANTINE_DIR" "$@"
     fi
 fi
+
+echo
+echo "--------------------------------------------------"
+echo " Finished MacClam.sh `date`"
+echo "--------------------------------------------------"
+echo
