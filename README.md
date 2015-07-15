@@ -8,16 +8,17 @@ sets up real-time directory monitoring and schedules periodic scans.
 It uses <a href="http://www.clamav.net/" target="_blank">ClamAV</a> as
 an AntiVirus engine and <a
 href="https://github.com/emcrisostomo/fswatch"
-target="_blank">fswatch</a> to monitor directories for changed files,
-which are then sent to clamd for scanning.  It also provides a way to
-scan individual files or directories on demand from the command line.
+target="_blank">fswatch</a> to actively monitor directories for new or
+changed files, which are then sent to clamd for scanning.  It also
+provides a way to scan individual files or directories on demand from
+the command line.
 
 ## Prerequisites ##
 
 You will need to have Apple's <a
 href="https://developer.apple.com/library/ios/technotes/tn2339/_index.html">Xcode
 command line tools</a> installed.  I have tested MacClam on Yosemite,
-but it may also work on other versions of OS X.
+but it may also work in other versions of OS X.
 
 ## Installation ##
 
