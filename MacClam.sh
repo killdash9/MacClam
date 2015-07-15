@@ -361,8 +361,9 @@ echo "#this is invoked by fswatch.  It scans if its argument is a file
 if [ -f \"\$1\" ]
 then
   output=\`\"$CLAMAV_INS/bin/clamdscan\" -v --config-file=\"$CLAMD_CONF\" --move=\"$QUARANTINE_DIR\" --no-summary \"\$1\"\`
-  echo \"\$output\"
   test \$? == \"1\" && osascript -e \"display notification \\\"\$output\\\" with title \\\"ClamAV\\\"\"
+  
+  echo \"\$output\"
 fi
 " > $INSTALLDIR/scaniffile
 chmod +x $INSTALLDIR/scaniffile
