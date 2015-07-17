@@ -57,7 +57,7 @@ QUARANTINE_DIR="$INSTALLDIR/quarantine"
 # Log file directory
 MACCLAM_LOG_DIR="$INSTALLDIR/log"
 CRON_LOG="$MACCLAM_LOG_DIR/cron.log"
-SENTRY_LOG="$MACCLAM_LOG_DIR/sentry.log"
+MONITOR_LOG="$MACCLAM_LOG_DIR/monitor.log"
 CLAMD_LOG="$MACCLAM_LOG_DIR/clamd.log"
 
 CRONTAB='
@@ -77,25 +77,25 @@ set -e
 if [ "$1" == "uninstall" ]
 then
     read -r -p "Are you sure you want to install MacClam? [y/N] " response
-    if [[ $response =~ ^([yY][eE][sS]|[yY])$ ]]
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
     then
         echo "Uninstalling MacClam"
         echo "Stopping services"
         sudo killall clamd fswatdh || true
         echo "Uninstalling from crontab"
         crontab <(cat <(crontab -l|sed '/# BEGIN MACCLAM/,/# END MACCLAM/d;/MacClam/d'));
-        if [ -d $QUARANTINE_DIR ]
+        if [ -d "$QUARANTINE_DIR" ]
         then
             echo "Moving $QUARANTINE_DIR to $HOME/MacClam_quarantine in case there's something you want in there."
-            if [ -d $HOME/MacClam_quarantine ]
+            if [ -d "$HOME/MacClam_quarantine" ]
             then
-                mv $QUARANTINE_DIR/* $HOME/MacClam_quarantine
+                mv "$QUARANTINE_DIR/*" "$HOME/MacClam_quarantine"
             else
-                mv $QUARANTINE_DIR $HOME/MacClam_quarantine
+                mv "$QUARANTINE_DIR" "$HOME/MacClam_quarantine"
             fi
         fi
         echo "Deleting installation directory $INSTALLDIR"
-        sudo rm -rf $INSTALLDIR
+        sudo rm -rf "$INSTALLDIR"
         echo "Uninstall complete.  Sorry to see you go!"
     else
         echo "Uninstall cancelled"
@@ -112,9 +112,9 @@ echo
 
 chmod +x "$SCRIPTPATH"
 
-test -d "$INSTALLDIR" || { echo "Creating installation directory $INSTALLDIR"; mkdir -p $INSTALLDIR; }
-test -d "$MACCLAM_LOG_DIR" || { echo "Creating log directory $MACCLAM_LOG_DIR"; mkdir -p $MACCLAM_LOG_DIR; }
-test -d "$QUARANTINE_DIR" || { echo "Creating quarantine directory $QUARANTINE_DIR"; mkdir -p $QUARANTINE_DIR; }
+test -d "$INSTALLDIR" || { echo "Creating installation directory $INSTALLDIR"; mkdir -p "$INSTALLDIR"; }
+test -d "$MACCLAM_LOG_DIR" || { echo "Creating log directory $MACCLAM_LOG_DIR"; mkdir -p "$MACCLAM_LOG_DIR"; }
+test -d "$QUARANTINE_DIR" || { echo "Creating quarantine directory $QUARANTINE_DIR"; mkdir -p "$QUARANTINE_DIR"; }
 test -f "$INSTALLDIR/clamav.ver" && CLAMAV_INS="$INSTALLDIR/clamav-installation-`cat $INSTALLDIR/clamav.ver`"
 
 test -f "$INSTALLDIR/fswatch.ver" && FSWATCH_INS="$INSTALLDIR/fswatch-installation-`cat $INSTALLDIR/fswatch.ver`"
@@ -141,8 +141,8 @@ then
     echo "Can't lookup latest clamav version.  Looking for already-installed version."
     CLAMAV_VER=`cat $INSTALLDIR/clamav.ver`
 else
-    echo $CLAMAV_VER
-    echo $CLAMAV_VER > $INSTALLDIR/clamav.ver
+    echo "$CLAMAV_VER"
+    echo "$CLAMAV_VER" > "$INSTALLDIR/clamav.ver"
 fi
 
 if [ ! "$CLAMAV_VER" ]
@@ -151,14 +151,15 @@ then
     exit 1
 fi
 
-CLAMAV_TAR=$INSTALLDIR/clamav-$CLAMAV_VER.tar.gz
-CLAMAV_SRC=$INSTALLDIR/clamav-$CLAMAV_VER
-CLAMAV_INS=$INSTALLDIR/clamav-installation-$CLAMAV_VER
+CLAMAV_TAR="$INSTALLDIR/clamav-$CLAMAV_VER.tar.gz"
+CLAMAV_SRC="$INSTALLDIR/clamav-$CLAMAV_VER"
+CLAMAV_INS="$INSTALLDIR/clamav-installation-$CLAMAV_VER"
 
-CLAMAV_DOWNLOAD_LINK=http://sourceforge.net/projects/clamav/files/clamav/$CLAMAV_VER/clamav-$CLAMAV_VER.tar.gz/download
+#CLAMAV_DOWNLOAD_LINK=http://sourceforge.net/projects/clamav/files/clamav/$CLAMAV_VER/clamav-$CLAMAV_VER.tar.gz/download
+CLAMAV_DOWNLOAD_LINK="http://nbtelecom.dl.sourceforge.net/project/clamav/clamav/$CLAMAV_VER/clamav-$CLAMAV_VER.tar.gz"
 
 echo -n "Has clamav-$CLAMAV_VER been downloaded?..."
-if [ -f $CLAMAV_TAR ] && tar -tf $CLAMAV_TAR > /dev/null
+if [ -f "$CLAMAV_TAR" ] && tar -tf "$CLAMAV_TAR" > /dev/null
 then
     echo "Yes"
 else
@@ -167,34 +168,71 @@ else
 fi
 
 echo -n "Has clamav-$CLAMAV_VER been extracted?..."
-if [ -d $CLAMAV_SRC ]
+if [ -d "$CLAMAV_SRC" ]
 then
     echo "Yes"
 else
     echo "No.  Extracting it."
-    cd $INSTALLDIR
-    tar -xf $CLAMAV_TAR
+    cd "$INSTALLDIR"
+    tar -xf "$CLAMAV_TAR"
 fi
 
 CFLAGS="-O2 -g -D_FILE_OFFSET_BITS=64" 
 CXXFLAGS="-O2 -g -D_FILE_OFFSET_BITS=64"
 
 echo -n "Has the clamav-$CLAMAV_VER build been configured?..."
-if [ -f $CLAMAV_SRC/Makefile ]
+if [ -f "$CLAMAV_SRC/Makefile" ]
 then
     echo "Yes"
 else
     echo "No.  Configuring it."
-    cd $CLAMAV_SRC
-    ./configure --disable-dependency-tracking --enable-llvm=no --enable-clamdtop --with-user=_clamav --with-group=_clamav --enable-all-jit-targets --prefix=$CLAMAV_INS    
+    cd "$CLAMAV_SRC"
+    ./configure --disable-dependency-tracking --enable-llvm=no --enable-clamdtop --with-user=_clamav --with-group=_clamav --enable-all-jit-targets --prefix="$CLAMAV_INS"
 fi
 
 echo -n "Has clamav-$CLAMAV_VER been built?..."
-if [ $CLAMAV_SRC/Makefile -nt $CLAMAV_SRC/clamscan ]
+if [ "$CLAMAV_SRC/Makefile" -nt "$CLAMAV_SRC/clamscan/clamscan" ]
 then
     echo "No.  Building it."
-    cd $CLAMAV_SRC
+    cd "$CLAMAV_SRC"
 
+    echo Patching it
+
+    # This bit of code modifies how quarantined files are named.  The
+    # name includes the original location of the file and the
+    # timestamp when it was quarantined.  This allows you to put it
+    # back in its original location if it shouldn't have been
+    # quarantined.
+    
+    patch -p1 <<EOF
+--- a/shared/actions.c	2015-04-22 13:50:12.000000000 -0600
++++ b/shared/actions.c	2015-07-15 22:17:34.000000000 -0600
+@@ -58,11 +58,21 @@
+     }
+     filename = basename(tmps);
+ 
+-    if(!(*newname = (char *)malloc(targlen + strlen(filename) + 6))) {
++    char curtime[sizeof "2011-10-08T07:07:09Z"];
++    if(!(*newname = (char *)malloc(targlen + strlen(tmps) + 1 + sizeof(curtime) + 6))) {
+ 	free(tmps);
+ 	return -1;
+     }
+-    sprintf(*newname, "%s"PATHSEP"%s", actarget, filename);
++    time_t now;
++    time(&now);
++    strftime(curtime, sizeof curtime, "%FT%TZ", gmtime(&now));
++    sprintf(*newname, "%s"PATHSEP"%s:%s", actarget, fullpath, curtime);
++    // replace path separators
++    for(char* c=*newname + strlen(actarget) + 1;*c;c++) {
++      if (*c == '/') {
++        *c='\\\\';
++      }
++    }
+     for(i=1; i<1000; i++) {
+ 	fd = open(*newname, O_WRONLY | O_CREAT | O_EXCL, 0600);
+ 	if(fd >= 0) {
+
+EOF
     make
 
 else
@@ -203,35 +241,43 @@ else
 fi
 
 echo -n "Has clamav-$CLAMAV_VER been installed?..."
-if [ $CLAMAV_SRC/clamscan -nt $CLAMAV_INS/bin/clamscan ]
+if [ "$CLAMAV_SRC/clamscan/clamscan" -nt "$CLAMAV_INS/bin/clamscan" ]
 then
     echo "No.  Installing it."
-    cd $CLAMAV_SRC
+    cd "$CLAMAV_SRC"
 
+    make #run make again just in case
     echo "Password needed to run sudo make install"
     sudo make install
 
-    sudo chown -R root:wheel $CLAMAV_INS/etc
-    sudo chmod 0775 $CLAMAV_INS/etc
-    sudo chmod 0664 $CLAMAV_INS/etc/*
+    if [ ! "$CLAMAV_INS" ]
+    then
+        echo "The variable CLAMAV_INS should be set here!  Not proceeding, so we don't screw things up"
+    fi
 
-    sudo chown -R root:wheel $CLAMAV_INS/bin
-    sudo chmod -R 0755 $CLAMAV_INS/bin
-    sudo chown clamav $CLAMAV_INS/bin/freshclam
-    sudo chmod u+s $CLAMAV_INS/bin/freshclam
-    sudo mkdir -p $CLAMAV_INS/share/clamav
-    sudo chown -R clamav:clamav $CLAMAV_INS/share/clamav
-    sudo chmod 0775 $CLAMAV_INS/share/clamav
-    sudo chmod 0664 $CLAMAV_INS/share/clamav/* || true
+    cd "$CLAMAV_INS"
+    
+    sudo chown -R root:wheel ./etc
+    sudo chmod 0775 ./etc
+    sudo chmod 0664 ./etc/*
 
-    sudo chown -R clamav:clamav $CLAMAV_INS/share/clamav/daily* || true
-    sudo chmod -R a+r $CLAMAV_INS/share/clamav/daily* || true
+    sudo chown -R root:wheel ./bin
+    sudo chmod -R 0755 ./bin
+    sudo chown clamav ./bin/freshclam
+    sudo chmod u+s ./bin/freshclam
+    sudo mkdir -p ./share/clamav
+    sudo chown -R clamav:clamav ./share/clamav
+    sudo chmod 0775 ./share/clamav
+    sudo chmod 0664 ./share/clamav/* || true
 
-    sudo chown -R clamav:clamav $CLAMAV_INS/share/clamav/main* || true
-    sudo chmod -R a+r $CLAMAV_INS/share/clamav/main.* || true
-    #sudo touch $CLAMAV_INS/share/clamav/freshclam.log 
-    #sudo chmod a+rw $CLAMAV_INS/share/clamav/freshclam.log
-    sudo chmod u+s $CLAMAV_INS/sbin/clamd
+    sudo chown -R clamav:clamav ./share/clamav/daily* || true
+    sudo chmod -R a+r ./share/clamav/daily* || true
+
+    sudo chown -R clamav:clamav ./share/clamav/main* || true
+    sudo chmod -R a+r ./share/clamav/main.* || true
+    #sudo touch ./share/clamav/freshclam.log 
+    #sudo chmod a+rw ./share/clamav/freshclam.log
+    sudo chmod u+s ./sbin/clamd
 else
     echo "Yes"
 fi
@@ -246,7 +292,7 @@ sed "
 \$a\\
 LogFile $CLAMD_LOG\\
 LocalSocket /tmp/clamd.socket\\
-" $CLAMD_CONF.sample > $TMPFILE
+" "$CLAMD_CONF.sample" > "$TMPFILE"
 if cmp -s "$TMPFILE" "$CLAMD_CONF" 
 then
     echo Yes
@@ -263,7 +309,7 @@ sed "
 \$a\\
 NotifyClamd $CLAMD_CONF\\
 MaxAttempts 1\\
-" $FRESHCLAM_CONF.sample > $TMPFILE
+" "$FRESHCLAM_CONF.sample" > "$TMPFILE"
 if cmp -s "$TMPFILE" "$FRESHCLAM_CONF" 
 then
     echo Yes
@@ -275,8 +321,8 @@ rm "$TMPFILE"
 
 echo -n "What is the latest version of fswatch?..."
 FSWATCH_DOWNLOAD_LINK=https://github.com`curl -L -s 'https://github.com/emcrisostomo/fswatch/releases/latest'| grep "/emcrisostomo/fswatch/releases/download/.*tar.gz"|sed 's,.*href *= *"\([^"]*\).*,\1,'`
-FSWATCH_VER=${FSWATCH_DOWNLOAD_LINK#https://github.com/emcrisostomo/fswatch/releases/download/}
-FSWATCH_VER=${FSWATCH_VER%/fswatch*}
+FSWATCH_VER="${FSWATCH_DOWNLOAD_LINK#https://github.com/emcrisostomo/fswatch/releases/download/}"
+FSWATCH_VER="${FSWATCH_VER%/fswatch*}"
 
 if [[ ! "$FSWATCH_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
 then
@@ -288,8 +334,8 @@ then
     echo "Can't lookup latest fswatch version.  Looking for already-installed version."
     FSWATCH_VER=`cat $INSTALLDIR/fswatch.ver`
 else
-    echo $FSWATCH_VER
-    echo $FSWATCH_VER > $INSTALLDIR/fswatch.ver
+    echo "$FSWATCH_VER"
+    echo "$FSWATCH_VER" > "$INSTALLDIR/fswatch.ver"
 fi
 
 if [ ! "$FSWATCH_VER" ]
@@ -298,12 +344,12 @@ then
     exit 1
 fi
 
-FSWATCH_TAR=$INSTALLDIR/fswatch-$FSWATCH_VER.tar.gz
-FSWATCH_SRC=$INSTALLDIR/fswatch-$FSWATCH_VER
-FSWATCH_INS=$INSTALLDIR/fswatch-installation-$FSWATCH_VER
+FSWATCH_TAR="$INSTALLDIR/fswatch-$FSWATCH_VER.tar.gz"
+FSWATCH_SRC="$INSTALLDIR/fswatch-$FSWATCH_VER"
+FSWATCH_INS="$INSTALLDIR/fswatch-installation-$FSWATCH_VER"
 
 echo -n "Has the latest fswatch been downloaded?..."
-if [ -f $FSWATCH_TAR ] && tar -tf $FSWATCH_TAR > /dev/null
+if [ -f "$FSWATCH_TAR" ] && tar -tf "$FSWATCH_TAR" > /dev/null
 then
     echo "Yes"
 else
@@ -312,23 +358,23 @@ else
 fi
 
 echo -n "Has fswatch been extracted?..."
-if [ -d $FSWATCH_SRC ]
+if [ -d "$FSWATCH_SRC" ]
 then
     echo "Yes"
 else
     echo "No.  Extracting it."
-    cd $INSTALLDIR
-    tar -xf $FSWATCH_TAR
+    cd "$INSTALLDIR"
+    tar -xf "$FSWATCH_TAR"
 fi
 
 echo -n "Has fswatch been configured?..."
-if [ -f $FSWATCH_SRC/Makefile ]
+if [ -f "$FSWATCH_SRC/Makefile" ]
 then
     echo "Yes"
 else
     echo "No.  Configuring it."
-    cd $FSWATCH_SRC
-    ./configure --prefix=$FSWATCH_INS
+    cd "$FSWATCH_SRC"
+    ./configure --prefix="$FSWATCH_INS"
 fi
 
 echo -n "Has fswatch been installed?..."
@@ -337,13 +383,13 @@ then
     echo "Yes"
 else
     echo "No.  Building and installing it."
-    cd $FSWATCH_SRC
+    cd "$FSWATCH_SRC"
 
     make
     echo "Password needed to run sudo make install"
     sudo make install
-    sudo chown root:wheel $FSWATCH_INS/bin/fswatch
-    sudo chmod u+s $FSWATCH_INS/bin/fswatch
+    sudo chown root:wheel "$FSWATCH_INS/bin/fswatch"
+    sudo chmod u+s "$FSWATCH_INS/bin/fswatch"
 
 fi
 
@@ -365,8 +411,8 @@ then
   
   echo \"\$output\"
 fi
-" > $INSTALLDIR/scaniffile
-chmod +x $INSTALLDIR/scaniffile
+" > "$INSTALLDIR/scaniffile"
+chmod +x "$INSTALLDIR/scaniffile"
 
 fi #end if [ -t 0 ] 
 
@@ -383,7 +429,7 @@ echo "----------------------------"
 echo " Updating ClamAV Signatures"
 echo "---------------------------"
 echo
-$CLAMAV_INS/bin/freshclam --config-file=$FRESHCLAM_CONF || true
+$CLAMAV_INS/bin/freshclam --config-file="$FRESHCLAM_CONF" || true
 
 echo
 echo "------------------"
@@ -426,7 +472,7 @@ else
 fi
 
 echo -n Is fswatch running?...
-FSWATCH_CMD='"$FSWATCH_INS/bin/fswatch" -E -e "$QUARANTINE_DIR" "${EXCLUDE_DIR_PATTERNS[@]/#/-e}" "${EXCLUDE_FILE_PATTERNS[@]/#/-e}" -e "$SENTRY_LOG" -e "$CLAMD_LOG" "${MONITOR_DIRS[@]}"'
+FSWATCH_CMD='"$FSWATCH_INS/bin/fswatch" -E -e "$QUARANTINE_DIR" "${EXCLUDE_DIR_PATTERNS[@]/#/-e}" "${EXCLUDE_FILE_PATTERNS[@]/#/-e}" -e "$MONITOR_LOG" -e "$CLAMD_LOG" "${MONITOR_DIRS[@]}"'
 if PID=`pgrep fswatch`
 then
     echo Yes
@@ -440,14 +486,14 @@ then
         then
             echo No.  Restarting.
             sudo killall fswatch
-            eval "$FSWATCH_CMD" | xargs -n1 $INSTALLDIR/scaniffile >> $SENTRY_LOG & disown
+            eval "$FSWATCH_CMD" | xargs -n1 "$INSTALLDIR/scaniffile" >> "$MONITOR_LOG" & disown
         else
             echo No.  Run $0 from the command line to update it.
         fi
     fi
 else
     echo No.  Starting it.
-    eval "$FSWATCH_CMD" | xargs -n1 $INSTALLDIR/scaniffile >> $SENTRY_LOG & disown
+    eval "$FSWATCH_CMD" | xargs -n1 "$INSTALLDIR/scaniffile" >> "$MONITOR_LOG" & disown
 fi
 
 echo Monitoring ${MONITOR_DIRS[@]}
