@@ -44,6 +44,7 @@ MONITOR_DIRS=(
 EXCLUDE_DIR_PATTERNS=(
     "/clamav-[^/]*/test/" #leave test files alone
     "^/Users/rblack/Library/"
+    "^/mnt/"
 )
 
 # File patterns to exclude from scanning
@@ -403,12 +404,12 @@ echo Creating scaniffile
 #test \$? == \"1\" && 
 #fi
 
-echo "#this is invoked by fswatch.  It scans if its argument is a file
+echo "#!/bin/bash
+#this is invoked by fswatch.  It scans if its argument is a file
 if [ -f \"\$1\" ]
 then
   output=\`\"$CLAMAV_INS/bin/clamdscan\" -v --config-file=\"$CLAMD_CONF\" --move=\"$QUARANTINE_DIR\" --no-summary \"\$1\"\`
-  test \$? == \"1\" && osascript -e \"display notification \\\"\$output\\\" with title \\\"ClamAV\\\"\"
-  
+  #test \$? == \"1\" && osascript -e \"display notification \\\"\$output\\\" with title \\\"ClamAV\\\"\"
   echo \"\$output\"
 fi
 " > "$INSTALLDIR/scaniffile"
@@ -427,7 +428,7 @@ $CRONTAB
 echo
 echo "----------------------------"
 echo " Updating ClamAV Signatures"
-echo "---------------------------"
+echo "----------------------------"
 echo
 $CLAMAV_INS/bin/freshclam --config-file="$FRESHCLAM_CONF" || true
 
@@ -472,7 +473,7 @@ else
 fi
 
 echo -n Is fswatch running?...
-FSWATCH_CMD='"$FSWATCH_INS/bin/fswatch" -E -e "$QUARANTINE_DIR" "${EXCLUDE_DIR_PATTERNS[@]/#/-e}" "${EXCLUDE_FILE_PATTERNS[@]/#/-e}" -e "$MONITOR_LOG" -e "$CLAMD_LOG" "${MONITOR_DIRS[@]}"'
+FSWATCH_CMD='"$FSWATCH_INS/bin/fswatch" -E -e "$QUARANTINE_DIR" "${EXCLUDE_DIR_PATTERNS[@]/#/-e}" "${EXCLUDE_FILE_PATTERNS[@]/#/-e}" -e "$MONITOR_LOG" -e "$CLAMD_LOG" -e "$CRON_LOG" "${MONITOR_DIRS[@]}"'
 if PID=`pgrep fswatch`
 then
     echo Yes
@@ -486,27 +487,88 @@ then
         then
             echo No.  Restarting.
             sudo killall fswatch
-            eval "$FSWATCH_CMD" | xargs -n1 "$INSTALLDIR/scaniffile" >> "$MONITOR_LOG" & disown
+            eval "$FSWATCH_CMD" | while read line; do "$INSTALLDIR/scaniffile" "$line"; done >> "$MONITOR_LOG" 2>&1 & disown
         else
             echo No.  Run $0 from the command line to update it.
         fi
     fi
 else
     echo No.  Starting it.
-    eval "$FSWATCH_CMD" | xargs -n1 "$INSTALLDIR/scaniffile" >> "$MONITOR_LOG" & disown
+    eval "$FSWATCH_CMD" | while read line; do "$INSTALLDIR/scaniffile" "$line"; done >> "$MONITOR_LOG" 2>&1 & disown
 fi
 
 echo Monitoring ${MONITOR_DIRS[@]}
 
-if [ "$1" ]
+if [ "$1" == "quarantine" ]
 then
-    if pgrep clamscan
+    echo "Scanning $QUARANTINE_DIR"
+    "$CLAMAV_INS/bin/clamscan" -r "$QUARANTINE_DIR"
+elif [ "$1" ]
+then
+    if ! [ -t 0 ] && pgrep clamscan
     then
         echo "It's time to scan $1, but a previous clamscan is still running.  Not starting another one"
     else
         echo "Scanning $@"
         "$CLAMAV_INS/bin/clamscan" -r --exclude-dir="$QUARANTINE_DIR" "${EXCLUDE_DIR_PATTERNS[@]/#/--exclude-dir=}" "${EXCLUDE_FILE_PATTERNS[@]/#/--exclude=}" --move="$QUARANTINE_DIR" "$@"
     fi
+elif [ -t 0 ]
+then
+    echo
+    echo "------------------"
+    echo " Current Activity "
+    echo "------------------"
+    echo
+    echo "You can press Control-C to stop viewing activity.  Scanning services will continue running."
+    echo 
+    (tail -0f "$CLAMD_LOG" "$CRON_LOG" "$MONITOR_LOG" | awk '
+BEGIN {tmax=80;dmax=tmax-40;e="\033["}
+/^\/.* (Empty file|OK)/ {
+    l=length
+    filename()
+    if (l<tmax) {
+        printf e"K%s\r",$0
+    }
+    else {
+        match($0,"/[^/]*$")
+        dir=substr($0,1,min(l-RLENGTH,dmax)-3)
+        file=substr($0,l-min(tmax-length(dir),RLENGTH)+1)
+        printf e"K%s...%s\r",dir,file
+    }
+    fflush;next
+}
+/SelfCheck: Database status OK./ {
+    filename()
+    printf e"K%s\r",$0
+    fflush;next
+}
+/^==> / {
+    if (pf) {
+        printf e"A"e"K%s\r"e"B",$0
+    }
+    else {
+        print f=$0
+        pf=1
+    }
+    fflush;next
+}
+!/^ *$/ {
+    print e"K"$0
+    pf=0
+}
+function filename(){
+    if (!pf) {
+        print f
+        pf=1
+    }
+}
+function min(a,b){return a<b?a:b}
+') ||  {
+        echo
+        echo
+        echo "Stopped showing activity.  Scan services continue to run."
+        echo "Run the script again at any time to view activity."
+    }
 fi
 
 echo
