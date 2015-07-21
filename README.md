@@ -1,6 +1,6 @@
 # MacClam
 
-The Non-Graphical Antivirus Solution for Mac OS X
+The Non-Graphical ClamAV Antivirus Solution for Mac OS X
 
 I wrote this as a free alternative to the excellent <a
 href="https://www.clamxav.com/" target="_blank">ClamXav</a>.  MacClam
@@ -50,6 +50,7 @@ crontab.  MacClam can be totally uninstalled up by running
 * Updates clamd signatures
 * Starts active monitoring services clamd and fswatch if not already running
 * Registers live monitoring to run on startup (also done in crontab)
+* If run from a terminal, it will show any current scanning activity
 
 `./MacClam.sh /path/file_or_directory ...`
 

@@ -200,39 +200,142 @@ then
     echo Patching it
 
     # This bit of code modifies how quarantined files are named.  The
-    # name includes the original location of the file and the
-    # timestamp when it was quarantined.  This allows you to put it
-    # back in its original location if it shouldn't have been
-    # quarantined.
+    # name includes the original location of the file, the name of the
+    # virus found in the file and the timestamp when it was
+    # quarantined.  This allows you to put it back in its original
+    # location if it shouldn't have been quarantined.
     
-    patch -p1 <<EOF
+    patch -p1 <<"EOF"
+diff -u a/clamdscan/proto.c b/clamdscan/proto.c
+--- a/clamdscan/proto.c	2015-04-22 13:49:57.000000000 -0600
++++ b/clamdscan/proto.c	2015-07-20 21:44:56.000000000 -0600
+@@ -323,12 +323,12 @@
+ 		if(filename) {
+ 		    if(scantype >= STREAM) {
+ 			logg("~%s%s FOUND\n", filename, colon);
+-			if(action) action(filename);
++			if(action) action(filename,*(colon+1) && *(colon+2)? colon+2:NULL);
+ 		    } else {
+ 			logg("~%s FOUND\n", bol);
+ 			*colon = '\0';
+ 			if(action)
+-			    action(bol);
++                action(bol,NULL);
+ 		    }
+ 		}
+ 	    } else if(!memcmp(eol-7, " ERROR", 6)) {
+@@ -511,7 +511,7 @@
+ 		c->infected++;
+ 		c->printok = 0;
+ 		logg("~%s%s\n", filename, colon);
+-		if(action) action(filename);
++		if(action) action(filename,*(colon+1) && *(colon+2)? colon+2:NULL);
+ 	    } else if(!memcmp(eol-7, " ERROR", 6)) {
+ 		c->errors++;
+ 		c->printok = 0;
+diff -u a/clamscan/manager.c b/clamscan/manager.c
+--- a/clamscan/manager.c	2015-04-22 13:49:58.000000000 -0600
++++ b/clamscan/manager.c	2015-07-20 21:16:04.000000000 -0600
+@@ -398,7 +398,7 @@
+     close(fd);
+ 
+     if(ret == CL_VIRUS && action)
+-        action(filename);
++        action(filename,virname);
+ }
+ 
+ static void scandirs(const char *dirname, struct cl_engine *engine, const struct optstruct *opts, unsigned int options, unsigned int depth, dev_t dev)
+diff -u a/shared/actions.c b/shared/actions.c
 --- a/shared/actions.c	2015-04-22 13:50:12.000000000 -0600
-+++ b/shared/actions.c	2015-07-15 22:17:34.000000000 -0600
-@@ -58,11 +58,21 @@
++++ b/shared/actions.c	2015-07-20 21:57:01.000000000 -0600
+@@ -39,7 +39,7 @@
+ #include "shared/misc.h"
+ #include "shared/actions.h"
+ 
+-void (*action)(const char *) = NULL;
++void (*action)(const char *, const char*) = NULL;
+ unsigned int notmoved = 0, notremoved = 0;
+ 
+ static char *actarget;
+@@ -47,7 +47,7 @@
+ 
+ 
+ 
+-static int getdest(const char *fullpath, char **newname) {
++static int getdest(const char *fullpath, char* virname, char **newname) {
+     char *tmps, *filename;
+     int fd, i;
+ 
+@@ -58,11 +58,22 @@
      }
      filename = basename(tmps);
  
 -    if(!(*newname = (char *)malloc(targlen + strlen(filename) + 6))) {
++    if (!virname) virname="";
 +    char curtime[sizeof "2011-10-08T07:07:09Z"];
-+    if(!(*newname = (char *)malloc(targlen + strlen(tmps) + 1 + sizeof(curtime) + 6))) {
++    if(!(*newname = (char *)malloc(targlen + strlen(tmps) + 1 + sizeof(curtime) + 1 + sizeof(virname) + 6))) {
  	free(tmps);
  	return -1;
      }
 -    sprintf(*newname, "%s"PATHSEP"%s", actarget, filename);
 +    time_t now;
 +    time(&now);
-+    strftime(curtime, sizeof curtime, "%FT%TZ", gmtime(&now));
-+    sprintf(*newname, "%s"PATHSEP"%s:%s", actarget, fullpath, curtime);
++    strftime(curtime, sizeof curtime, "%FT%TZ", localtime(&now));
++    sprintf(*newname, "%s"PATHSEP"%s:%s:%s", actarget, fullpath, virname, curtime);
 +    // replace path separators
 +    for(char* c=*newname + strlen(actarget) + 1;*c;c++) {
 +      if (*c == '/') {
-+        *c='\\\\';
++        *c='\\';
 +      }
 +    }
      for(i=1; i<1000; i++) {
  	fd = open(*newname, O_WRONLY | O_CREAT | O_EXCL, 0600);
  	if(fd >= 0) {
-
+@@ -78,9 +89,9 @@
+     return -1;
+ }
+ 
+-static void action_move(const char *filename) {
++static void action_move(const char *filename, const char* virname) {
+     char *nuname;
+-    int fd = getdest(filename, &nuname), copied = 0;
++    int fd = getdest(filename, virname, &nuname), copied = 0;
+ 
+     if(fd<0 || (rename(filename, nuname) && (copied=1) && filecopy(filename, nuname))) {
+ 	logg("!Can't move file %s\n", filename);
+@@ -97,9 +108,9 @@
+     if(nuname) free(nuname);
+ }
+ 
+-static void action_copy(const char *filename) {
++static void action_copy(const char *filename, const char* virname) {
+     char *nuname;
+-    int fd = getdest(filename, &nuname);
++    int fd = getdest(filename, virname, &nuname);
+ 
+     if(fd < 0 || filecopy(filename, nuname)) {
+ 	logg("!Can't copy file '%s'\n", filename);
+@@ -112,7 +123,7 @@
+     if(nuname) free(nuname);
+ }
+ 
+-static void action_remove(const char *filename) {
++static void action_remove(const char *filename, const char* virname) {
+     if(unlink(filename)) {
+ 	logg("!Can't remove file '%s'.\n", filename);
+ 	notremoved++;
+diff -u a/shared/actions.h b/shared/actions.h
+--- a/shared/actions.h	2015-04-22 13:50:12.000000000 -0600
++++ b/shared/actions.h	2015-07-20 21:09:49.000000000 -0600
+@@ -23,7 +23,7 @@
+ 
+ #include "shared/optparser.h"
+ 
+-extern void (*action)(const char *);
++extern void (*action)(const char *, const char *);
+ int actsetup(const struct optstruct *opts);
+ extern unsigned int notremoved, notmoved;
+ 
 EOF
     make
 
@@ -521,7 +624,7 @@ then
     echo
     echo "You can press Control-C to stop viewing activity.  Scanning services will continue running."
     echo 
-    (tail -0f "$CLAMD_LOG" "$CRON_LOG" "$MONITOR_LOG" | awk '
+    (tail -0F "$CLAMD_LOG" "$CRON_LOG" "$MONITOR_LOG" | awk '
 BEGIN {tmax=80;dmax=tmax-40;e="\033["}
 /^\/.* (Empty file|OK)/ {
     l=length
