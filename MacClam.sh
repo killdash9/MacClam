@@ -40,10 +40,10 @@ MONITOR_DIRS=(
     "/Applications"
 )
 
-# Directory patterns to exclude from scanning
+# Directory patterns to exclude from scanning (this is a substring match)
 EXCLUDE_DIR_PATTERNS=(
     "/clamav-[^/]*/test/" #leave test files alone
-    "^/Users/rblack/Library/"
+    "^$HOME/Library/"
     "^/mnt/"
 )
 
@@ -214,7 +214,7 @@ then
     # quarantined.  This allows you to put it back in its original
     # location if it shouldn't have been quarantined.
     
-    patch -p1 <<"EOF"
+    patch -p1 <<'EOF'
 diff -u a/clamdscan/proto.c b/clamdscan/proto.c
 --- a/clamdscan/proto.c	2015-04-22 13:49:57.000000000 -0600
 +++ b/clamdscan/proto.c	2015-07-20 21:44:56.000000000 -0600
