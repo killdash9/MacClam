@@ -178,7 +178,7 @@ else
 fi
 
 echo -n "Has clamav-$CLAMAV_VER been extracted?..."
-if false && [ -d "$CLAMAV_SRC" ]
+if [ -d "$CLAMAV_SRC" ]
 then
     echo "Yes"
 else
@@ -201,7 +201,7 @@ else
 fi
 
 echo -n "Has clamav-$CLAMAV_VER been built?..."
-if [ true -o "$CLAMAV_SRC/Makefile" -nt "$CLAMAV_SRC/clamscan/clamscan" ]
+if [ "$CLAMAV_SRC/Makefile" -nt "$CLAMAV_SRC/clamscan/clamscan" ]
 then
     echo "No.  Building it."
     cd "$CLAMAV_SRC"
