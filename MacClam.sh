@@ -104,6 +104,12 @@ then
     exit
 fi
 
+if [ "$1" == "quarantine" ]
+then
+    echo "Opening $QUARANTINE_DIR"
+    open "$QUARANTINE_DIR"
+    exit
+fi
 
 echo
 echo "--------------------------------------------------"
@@ -115,6 +121,9 @@ chmod +x "$SCRIPTPATH"
 
 test -d "$INSTALLDIR" || { echo "Creating installation directory $INSTALLDIR"; mkdir -p "$INSTALLDIR"; }
 test -d "$MACCLAM_LOG_DIR" || { echo "Creating log directory $MACCLAM_LOG_DIR"; mkdir -p "$MACCLAM_LOG_DIR"; }
+test -f "$CRON_LOG" || touch "$CRON_LOG"
+test -f "$CLAMD_LOG" || touch "$CLAMD_LOG"
+test -f "$MONITOR_LOG" || touch "$MONITOR_LOG"
 test -d "$QUARANTINE_DIR" || { echo "Creating quarantine directory $QUARANTINE_DIR"; mkdir -p "$QUARANTINE_DIR"; }
 test -f "$INSTALLDIR/clamav.ver" && CLAMAV_INS="$INSTALLDIR/clamav-installation-`cat $INSTALLDIR/clamav.ver`"
 
@@ -169,7 +178,7 @@ else
 fi
 
 echo -n "Has clamav-$CLAMAV_VER been extracted?..."
-if [ -d "$CLAMAV_SRC" ]
+if false && [ -d "$CLAMAV_SRC" ]
 then
     echo "Yes"
 else
@@ -192,7 +201,7 @@ else
 fi
 
 echo -n "Has clamav-$CLAMAV_VER been built?..."
-if [ "$CLAMAV_SRC/Makefile" -nt "$CLAMAV_SRC/clamscan/clamscan" ]
+if [ true -o "$CLAMAV_SRC/Makefile" -nt "$CLAMAV_SRC/clamscan/clamscan" ]
 then
     echo "No.  Building it."
     cd "$CLAMAV_SRC"
@@ -220,7 +229,7 @@ diff -u a/clamdscan/proto.c b/clamdscan/proto.c
  			*colon = '\0';
  			if(action)
 -			    action(bol);
-+                action(bol,NULL);
++               action(bol,*(colon+1) && *(colon+2)? colon+2:NULL);
  		    }
  		}
  	    } else if(!memcmp(eol-7, " ERROR", 6)) {
@@ -271,8 +280,8 @@ diff -u a/shared/actions.c b/shared/actions.c
      filename = basename(tmps);
  
 -    if(!(*newname = (char *)malloc(targlen + strlen(filename) + 6))) {
-+    if (!virname) virname="";
-+    char curtime[sizeof "2011-10-08T07:07:09Z"];
++    if (!virname) virname="xxx";
++    char curtime[sizeof "2011-10-08 070709"];
 +    if(!(*newname = (char *)malloc(targlen + strlen(tmps) + 1 + sizeof(curtime) + 1 + sizeof(virname) + 6))) {
  	free(tmps);
  	return -1;
@@ -280,12 +289,12 @@ diff -u a/shared/actions.c b/shared/actions.c
 -    sprintf(*newname, "%s"PATHSEP"%s", actarget, filename);
 +    time_t now;
 +    time(&now);
-+    strftime(curtime, sizeof curtime, "%FT%TZ", localtime(&now));
-+    sprintf(*newname, "%s"PATHSEP"%s:%s:%s", actarget, fullpath, virname, curtime);
++    strftime(curtime, sizeof curtime, "%F %H%M%S", localtime(&now));
++    sprintf(*newname, "%s"PATHSEP"%s %s %s", actarget, fullpath, virname, curtime);
 +    // replace path separators
 +    for(char* c=*newname + strlen(actarget) + 1;*c;c++) {
 +      if (*c == '/') {
-+        *c='\\';
++        *c=':';
 +      }
 +    }
      for(i=1; i<1000; i++) {
@@ -602,11 +611,7 @@ fi
 
 echo Monitoring ${MONITOR_DIRS[@]}
 
-if [ "$1" == "quarantine" ]
-then
-    echo "Scanning $QUARANTINE_DIR"
-    "$CLAMAV_INS/bin/clamscan" -r "$QUARANTINE_DIR"
-elif [ "$1" ]
+if [ "$1" ]
 then
     if ! [ -t 0 ] && pgrep clamscan
     then
