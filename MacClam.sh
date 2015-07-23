@@ -634,14 +634,24 @@ then
             green="$(tput setaf 2)" &&
             red="$(tput setaf 1)" &&
             yellow="$(tput setaf 3)" && 
+            cyan="$(tput setaf 6)" && 
             normal="$(tput sgr0)"
     } || true
     
     (tail -0F "$CLAMD_LOG" "$CRON_LOG" "$MONITOR_LOG" | awk '
-BEGIN {tmax=max(30,'"`tput cols`"');e="\033[";viruscnt='"`ls $QUARANTINE_DIR|wc -l`"'}
+BEGIN {
+    tmax=max(30,'"`tput cols`"')
+    e="\033["
+    viruscnt='"`ls $QUARANTINE_DIR|wc -l`"'
+    r="'"$red"'"
+    g="'"$green"'"
+    y="'"$yellow"'"
+    c="'"$cyan"'"
+    n="'"$normal"'"
+}
 
 /^\/.* FOUND/ {
-    sub(/ FOUND$/," '"$red"'FOUND'"$normal"'")
+    sub(/ FOUND$/,r" FOUND"n)
     cnt++
     viruscnt++
 }
@@ -650,14 +660,12 @@ BEGIN {tmax=max(30,'"`tput cols`"');e="\033[";viruscnt='"`ls $QUARANTINE_DIR|wc 
     l=length
     filename()
     countstr=sprintf("%d scanned ",cnt)
-    if (viruscnt) virusstr=sprintf("%d vir ",viruscnt)
-    else virusstr=""
-    printf e"K" "'"$yellow"'" countstr "'"$red"'" virusstr  "'"$normal"'" 
+    virusstr=viruscnt? virusstr=sprintf("%d vir ",viruscnt):""
+    printf e"K" y countstr r virusstr n
     tmax_ = tmax-length(countstr)-length(virusstr)
     dmax=max(tmax_-30,tmax_/2);
-    #print tmax " " tmax_ " " tmax_/2 " " dmax
     if (l<tmax_) {
-        sub(/OK$/,"'"$green"'OK'"$normal"'")
+        sub(/OK$/,g"OK"n)
         printf "%s\r",$0
     }
     else {
@@ -665,22 +673,22 @@ BEGIN {tmax=max(30,'"`tput cols`"');e="\033[";viruscnt='"`ls $QUARANTINE_DIR|wc 
         dir=substr($0,1,min(l-RLENGTH,dmax))
         file=substr($0,l-min(tmax_-length(dir),RLENGTH)+1)
         dir=substr(dir,1,length(dir)-3)
-        sub(/OK$/,"'"$green"'OK'"$normal"'",file)
+        sub(/OK$/,g"OK"n,file)
         printf "%s...%s\r",dir,file
     }
     fflush;next
 }
 /SelfCheck: Database status OK./ {
     filename()
-    printf e"K%s\r",$0
+    printf e"K%."tmax"s\r",$0
     fflush;next
 }
 /^==> / {
     if (pf) {
-        printf e"A"e"K%."tmax"s\r"e"B",$0
+        printf c e"A"e"K%."tmax"s\r"e"B" n,$0
     }
     else {
-        printf "%."tmax"s\n",f=$0
+        printf c "%."tmax"s\n" n,f=$0
         pf=1
     }
     fflush;next
@@ -691,7 +699,7 @@ BEGIN {tmax=max(30,'"`tput cols`"');e="\033[";viruscnt='"`ls $QUARANTINE_DIR|wc 
 }
 function filename(){
     if (!pf) {
-        printf "%."tmax"s\n",f
+        printf "'"$cyan"'" "%." tmax"s\n" "'"$normal"'",f
         pf=1
     }
 }
