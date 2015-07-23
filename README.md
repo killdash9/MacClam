@@ -22,7 +22,7 @@ but it may also work in other versions of OS X.
 
 ## Installation ##
 
-Installation is very simple.  In a bash shell, type
+Installation is very simple.  In a shell, type
 
     curl -O https://raw.githubusercontent.com/killdash9/MacClam/master/MacClam.sh
     chmod +x MacClam.sh
