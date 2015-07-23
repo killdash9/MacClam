@@ -43,7 +43,7 @@ MONITOR_DIRS=(
 # Directory patterns to exclude from scanning (this is a substring match)
 EXCLUDE_DIR_PATTERNS=(
     "/clamav-[^/]*/test/" #leave test files alone
-    "^$HOME/Library/"
+    #"^$HOME/Library/"
     "^/mnt/"
 )
 
@@ -628,20 +628,45 @@ then
     echo "------------------"
     echo
     echo "You can press Control-C to stop viewing activity.  Scanning services will continue running."
-    echo 
+    echo
+    {
+        tput colors > /dev/null && 
+            green="$(tput setaf 2)" &&
+            red="$(tput setaf 1)" &&
+            yellow="$(tput setaf 3)" && 
+            normal="$(tput sgr0)"
+    } || true
+    
     (tail -0F "$CLAMD_LOG" "$CRON_LOG" "$MONITOR_LOG" | awk '
-BEGIN {tmax=80;dmax=tmax-40;e="\033["}
+BEGIN {tmax=max(30,'"`tput cols`"');e="\033[";viruscnt='"`ls $QUARANTINE_DIR|wc -l`"'}
+
+/^\/.* FOUND/ {
+    sub(/ FOUND$/," '"$red"'FOUND'"$normal"'")
+    cnt++
+    viruscnt++
+}
 /^\/.* (Empty file|OK)/ {
+    cnt++
     l=length
     filename()
-    if (l<tmax) {
-        printf e"K%s\r",$0
+    countstr=sprintf("%d scanned ",cnt)
+    if (viruscnt) virusstr=sprintf("%d vir ",viruscnt)
+    else virusstr=""
+    printf e"K" "'"$yellow"'" countstr "'"$red"'" virusstr  "'"$normal"'" 
+    tmax_ = tmax-length(countstr)-length(virusstr)
+    dmax=max(tmax_-30,tmax_/2);
+    #print tmax " " tmax_ " " tmax_/2 " " dmax
+    if (l<tmax_) {
+        sub(/OK$/,"'"$green"'OK'"$normal"'")
+        printf "%s\r",$0
     }
     else {
         match($0,"/[^/]*$")
-        dir=substr($0,1,min(l-RLENGTH,dmax)-3)
-        file=substr($0,l-min(tmax-length(dir),RLENGTH)+1)
-        printf e"K%s...%s\r",dir,file
+        dir=substr($0,1,min(l-RLENGTH,dmax))
+        file=substr($0,l-min(tmax_-length(dir),RLENGTH)+1)
+        dir=substr(dir,1,length(dir)-3)
+        sub(/OK$/,"'"$green"'OK'"$normal"'",file)
+        printf "%s...%s\r",dir,file
     }
     fflush;next
 }
@@ -652,10 +677,10 @@ BEGIN {tmax=80;dmax=tmax-40;e="\033["}
 }
 /^==> / {
     if (pf) {
-        printf e"A"e"K%s\r"e"B",$0
+        printf e"A"e"K%."tmax"s\r"e"B",$0
     }
     else {
-        print f=$0
+        printf "%."tmax"s\n",f=$0
         pf=1
     }
     fflush;next
@@ -666,11 +691,12 @@ BEGIN {tmax=80;dmax=tmax-40;e="\033["}
 }
 function filename(){
     if (!pf) {
-        print f
+        printf "%."tmax"s\n",f
         pf=1
     }
 }
 function min(a,b){return a<b?a:b}
+function max(a,b){return a>b?a:b}
 ') ||  {
         echo
         echo
