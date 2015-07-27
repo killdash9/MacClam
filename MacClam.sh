@@ -280,7 +280,7 @@ diff -u a/shared/actions.c b/shared/actions.c
      filename = basename(tmps);
  
 -    if(!(*newname = (char *)malloc(targlen + strlen(filename) + 6))) {
-+    if (!virname) virname="xxx";
++    if (!virname) virname="";
 +    char curtime[sizeof "2011-10-08 070709"];
 +    if(!(*newname = (char *)malloc(targlen + strlen(tmps) + 1 + sizeof(curtime) + 1 + sizeof(virname) + 6))) {
  	free(tmps);
