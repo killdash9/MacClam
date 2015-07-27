@@ -694,6 +694,8 @@ BEGIN {
     fflush;next
 }
 !/^ *$/ {
+    sub(/ERROR/,r"ERROR"n)
+    sub(/WARNING/,y"WARNING"n)
     print e"K"$0
     pf=0
 }
