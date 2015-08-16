@@ -49,7 +49,7 @@ crontab.  MacClam can be totally uninstalled up by running
 * Sets up regular signature updates and full scans in crontab
 * Updates clamd signatures
 * Starts active monitoring services clamd and fswatch if not already running
-* Registers live monitoring to run on startup (also done in crontab)
+* Sets active monitoring to run on startup (also done in crontab)
 * If run from a terminal, it will show any current scanning activity
 
 `./MacClam.sh /path/file_or_directory ...`
