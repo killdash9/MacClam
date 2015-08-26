@@ -38,7 +38,7 @@ the script.
 By default, the installation directory is `~/MacClam`.  This directory
 contains all the source, binaries, log files, and quarantine folder.
 The only artifact of the installation outside this directory is the
-crontab.  MacClam can be totally uninstalled up by running
+crontab.  MacClam can be totally uninstalled by running
 `./MacClam.sh uninstall`.
 
 ## Usage ##
