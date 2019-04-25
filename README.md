@@ -41,7 +41,7 @@ The only artifact of the installation outside this directory is the
 crontab and the `MacClam.sh` script itself, which is required for
 MacClam to function.  If you want to move the `MacClam.sh` script to
 another location, just re-run it from the new location and the crontab
-references will be updated.  It can be totally uninstalled up by
+references will be updated.  It can be totally uninstalled by
 running `./MacClam.sh uninstall`.
 
 ## Usage ##
@@ -52,7 +52,7 @@ running `./MacClam.sh uninstall`.
 * Sets up regular signature updates and full scans in crontab
 * Updates clamd signatures
 * Starts active monitoring services clamd and fswatch if not already running
-* Registers live monitoring to run on startup (also done in crontab)
+* Sets active monitoring to run on startup (also done in crontab)
 * If run from a terminal, it will show any current scanning activity
 
 `./MacClam.sh /path/file_or_directory ...`
