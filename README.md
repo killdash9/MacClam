@@ -32,7 +32,7 @@ run one or both of the above commands.
 
 ## Installation ##
 
-Installation is very simple.  In a shell, type
+Installation is very simple.  After installing prerequisite tools, type the following in a terminal.
 
     curl -O https://raw.githubusercontent.com/killdash9/MacClam/master/MacClam.sh
     chmod +x MacClam.sh
