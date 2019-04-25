@@ -12,13 +12,13 @@ popd > /dev/null
 # them from source.
 #
 # 2) Sets the program to actively monitor the directories specified by
-# $FSWATCHDIRS, and move any viruses it finds to a folder specified by
+# $MONITOR_DIRS, and move any viruses it finds to a folder specified by
 # $QUARANTINE_DIR.
 #
 # 3) Installs a crontab that invokes this same script once a day to
 # check for virus definition updates, and once a week to perform a
 # full system scan.  These scheduled times can be customized by
-# editing the CRONTAB variable below.  The crontab also sechedules
+# editing the CRONTAB variable below.  The crontab also schedules
 # MacClam to run on startup.
 #
 # If you pass one or more arguments to this file, all of the above
@@ -49,7 +49,7 @@ EXCLUDE_DIR_PATTERNS=(
 
 # File patterns to exclude from scanning
 EXCLUDE_FILE_PATTERNS=(
-    #'\.jpg$'
+    '\.txt$'
 )
 
 # Pipe-separated list of filename patterns to exclude
@@ -75,6 +75,24 @@ CRONTAB='
 
 set -e
 
+if [ "$1" == "help" -o "$1" == "-help" -o  "$1" == "--help" ]
+then
+    echo "Usage:
+
+MacClam.sh               Show current scanning activity, installing clamav and fswatch if needed
+MacClam.sh quarantine    Open the quarantine folder
+MacClam.sh uninstall     Uninstall MacClam
+MacClam.sh help          Display this message
+
+MacClam.sh [clamdscan args] [FILE|DIRECTORY]...  
+
+The last form launches clamdscan on specific files or directories, installing if needed.
+
+Get more information from https://github.com/killdash9/MacClam
+"
+    exit
+fi
+
 if [ "$1" == "uninstall" ]
 then
     read -r -p "Are you sure you want to install MacClam? [y/N] " response
@@ -82,15 +100,15 @@ then
     then
         echo "Uninstalling MacClam"
         echo "Stopping services"
-        sudo killall clamd fswatdh || true
+        sudo killall clamd fswatch || true
         echo "Uninstalling from crontab"
         crontab <(cat <(crontab -l|sed '/# BEGIN MACCLAM/,/# END MACCLAM/d;/MacClam/d'));
-        if [ -d "$QUARANTINE_DIR" ]
+        if [ -d "$QUARANTINE_DIR" -a "`ls "$QUARANTINE_DIR"`" ]
         then
             echo "Moving $QUARANTINE_DIR to $HOME/MacClam_quarantine in case there's something you want in there."
             if [ -d "$HOME/MacClam_quarantine" ]
             then
-                mv "$QUARANTINE_DIR/*" "$HOME/MacClam_quarantine"
+                mv "$QUARANTINE_DIR/"* "$HOME/MacClam_quarantine"
             else
                 mv "$QUARANTINE_DIR" "$HOME/MacClam_quarantine"
             fi
@@ -104,18 +122,14 @@ then
     exit
 fi
 
-if [ "$1" == "quarantine" ]
+if [ ! -t 0 ]
 then
-    echo "Opening $QUARANTINE_DIR"
-    open "$QUARANTINE_DIR"
-    exit
-fi
-
 echo
 echo "--------------------------------------------------"
 echo " Starting MacClam.sh `date`"
 echo "--------------------------------------------------"
 echo
+fi
 
 chmod +x "$SCRIPTPATH"
 
@@ -129,14 +143,93 @@ test -f "$INSTALLDIR/clamav.ver" && CLAMAV_INS="$INSTALLDIR/clamav-installation-
 
 test -f "$INSTALLDIR/fswatch.ver" && FSWATCH_INS="$INSTALLDIR/fswatch-installation-`cat $INSTALLDIR/fswatch.ver`"
 
+if [ "$1" == "quarantine" ]
+then
+    echo "Opening $QUARANTINE_DIR"
+    open "$QUARANTINE_DIR"
+    exit
+fi
+
+
+
 if [ -t 0 ] #don't do this when we're run from cron
 then
     
 echo
-echo "--------------------"
-echo " Verifying software"
-echo "--------------------"
+echo "-----------------------"
+echo " Checking Installation"
+echo "-----------------------"
 echo
+echo -n "What is the latest version of openssl?..."
+
+OPENSSL_DOWNLOAD_LINK=https://www.openssl.org/source/`curl -s https://www.openssl.org/source/|grep -Eo 'openssl-1\.1\.1.{0,2}\.tar.gz'|head -1`
+OPENSSL_VER="${OPENSSL_DOWNLOAD_LINK#https://www.openssl.org/source/openssl-}"
+OPENSSL_VER="${OPENSSL_VER%.tar.gz}"
+
+if [[ ! "$OPENSSL_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+[a-z]?$ ]]
+then
+    OPENSSL_VER='' #we didn't get a version number
+fi
+
+if [ ! "$OPENSSL_VER" ]
+then
+    echo "Can't lookup latest openssl version.  Looking for already-installed version."
+    OPENSSL_VER=`cat $INSTALLDIR/openssl.ver`
+else
+    echo "$OPENSSL_VER"
+    echo "$OPENSSL_VER" > "$INSTALLDIR/openssl.ver"
+fi
+
+if [ ! "$OPENSSL_VER" ]
+then
+    echo "No openssl installed and can't update.  Can't proceed."
+    exit 1
+fi
+
+OPENSSL_TAR="$INSTALLDIR/openssl-$OPENSSL_VER.tar.gz"
+OPENSSL_SRC="$INSTALLDIR/openssl-$OPENSSL_VER"
+OPENSSL_INS="$INSTALLDIR/openssl-installation-$OPENSSL_VER"
+
+echo -n "Has openssl-$OPENSSL_VER been downloaded?..."
+if [ -f "$OPENSSL_TAR" ] && tar -tf "$OPENSSL_TAR" > /dev/null
+then
+    echo "Yes"
+else
+    echo "No.  Downloading $OPENSSL_DOWNLOAD_LINK to $OPENSSL_TAR"
+    curl --connect-timeout 3  -L -o "$OPENSSL_TAR" "$OPENSSL_DOWNLOAD_LINK" 
+fi
+
+echo -n "Has openssl-$OPENSSL_VER been extracted?..."
+if [ -d "$OPENSSL_SRC" ]
+then
+    echo "Yes"
+else
+    echo "No.  Extracting it."
+    cd "$INSTALLDIR"
+    tar -xf "$OPENSSL_TAR"
+fi
+
+echo -n "Has openssl-$OPENSSL_VER been built?..."
+if [ -f "$OPENSSL_SRC/libcrypto.a" ]
+then
+    echo "Yes"
+else
+    echo "No.  Building it."
+    cd "$OPENSSL_SRC"
+    ./Configure darwin64-x86_64-cc enable-ec_nistp_64_gcc_128 no-ssl2 no-ssl3 no-comp --openssldir=$OPENSSL_INS --prefix=$OPENSSL_INS &&
+        make -j8
+fi
+
+echo -n "Has openssl-$OPENSSL_VER been installed?..."
+if [ "$OPENSSL_INS/lib/libcrypto.a" -nt "$OPENSSL_SRC/libcrypto.a" ]
+then
+    echo "Yes"
+else
+    echo "No.  Installing it."
+    cd "$OPENSSL_SRC"
+    make install_sw
+fi
+
 echo -n "What is the latest version of clamav?..."
 
 #ClamAV stores its version in dns
@@ -166,7 +259,8 @@ CLAMAV_SRC="$INSTALLDIR/clamav-$CLAMAV_VER"
 CLAMAV_INS="$INSTALLDIR/clamav-installation-$CLAMAV_VER"
 
 #CLAMAV_DOWNLOAD_LINK=http://sourceforge.net/projects/clamav/files/clamav/$CLAMAV_VER/clamav-$CLAMAV_VER.tar.gz/download
-CLAMAV_DOWNLOAD_LINK="http://nbtelecom.dl.sourceforge.net/project/clamav/clamav/$CLAMAV_VER/clamav-$CLAMAV_VER.tar.gz"
+CLAMAV_DOWNLOAD_LINK="https://www.clamav.net/downloads/production/clamav-$CLAMAV_VER.tar.gz"
+#CLAMAV_DOWNLOAD_LINK="http://nbtelecom.dl.sourceforge.net/project/clamav/clamav/$CLAMAV_VER/clamav-$CLAMAV_VER.tar.gz"
 
 echo -n "Has clamav-$CLAMAV_VER been downloaded?..."
 if [ -f "$CLAMAV_TAR" ] && tar -tf "$CLAMAV_TAR" > /dev/null
@@ -197,7 +291,7 @@ then
 else
     echo "No.  Configuring it."
     cd "$CLAMAV_SRC"
-    ./configure --disable-dependency-tracking --enable-llvm=no --enable-clamdtop --with-user=_clamav --with-group=_clamav --enable-all-jit-targets --prefix="$CLAMAV_INS"
+    ./configure --disable-dependency-tracking --enable-llvm=no --enable-clamdtop --with-user=_clamav --with-group=_clamav --enable-all-jit-targets --with-openssl="$OPENSSL_INS" --prefix="$CLAMAV_INS"
 fi
 
 echo -n "Has clamav-$CLAMAV_VER been built?..."
@@ -209,16 +303,17 @@ then
     echo Patching it
 
     # This bit of code modifies how quarantined files are named.  The
-    # name includes the original location of the file, the name of the
-    # virus found in the file and the timestamp when it was
-    # quarantined.  This allows you to put it back in its original
-    # location if it shouldn't have been quarantined.
+    # patched name includes the original location of the file, the
+    # name of the virus found in the file and the timestamp when it
+    # was quarantined.  This allows you to know where it came from and
+    # put it back in its original location if it shouldn't have been
+    # quarantined.
     
     patch -p1 <<'EOF'
 diff -u a/clamdscan/proto.c b/clamdscan/proto.c
 --- a/clamdscan/proto.c	2015-04-22 13:49:57.000000000 -0600
 +++ b/clamdscan/proto.c	2015-07-20 21:44:56.000000000 -0600
-@@ -323,12 +323,12 @@
+@@ -340,12 +340,12 @@
  		if(filename) {
  		    if(scantype >= STREAM) {
  			logg("~%s%s FOUND\n", filename, colon);
@@ -233,7 +328,7 @@ diff -u a/clamdscan/proto.c b/clamdscan/proto.c
  		    }
  		}
  	    } else if(!memcmp(eol-7, " ERROR", 6)) {
-@@ -511,7 +511,7 @@
+@@ -528,7 +528,7 @@
  		c->infected++;
  		c->printok = 0;
  		logg("~%s%s\n", filename, colon);
@@ -245,7 +340,7 @@ diff -u a/clamdscan/proto.c b/clamdscan/proto.c
 diff -u a/clamscan/manager.c b/clamscan/manager.c
 --- a/clamscan/manager.c	2015-04-22 13:49:58.000000000 -0600
 +++ b/clamscan/manager.c	2015-07-20 21:16:04.000000000 -0600
-@@ -398,7 +398,7 @@
+@@ -423,7 +423,7 @@
      close(fd);
  
      if(ret == CL_VIRUS && action)
@@ -253,11 +348,11 @@ diff -u a/clamscan/manager.c b/clamscan/manager.c
 +        action(filename,virname);
  }
  
- static void scandirs(const char *dirname, struct cl_engine *engine, const struct optstruct *opts, unsigned int options, unsigned int depth, dev_t dev)
+ static void scandirs(const char *dirname, struct cl_engine *engine, const struct optstruct *opts, struct cl_scan_options *options, unsigned int depth, dev_t dev)
 diff -u a/shared/actions.c b/shared/actions.c
 --- a/shared/actions.c	2015-04-22 13:50:12.000000000 -0600
 +++ b/shared/actions.c	2015-07-20 21:57:01.000000000 -0600
-@@ -39,7 +39,7 @@
+@@ -40,7 +40,7 @@
  #include "shared/misc.h"
  #include "shared/actions.h"
  
@@ -266,7 +361,7 @@ diff -u a/shared/actions.c b/shared/actions.c
  unsigned int notmoved = 0, notremoved = 0;
  
  static char *actarget;
-@@ -47,7 +47,7 @@
+@@ -48,7 +48,7 @@
  
  
  
@@ -275,7 +370,7 @@ diff -u a/shared/actions.c b/shared/actions.c
      char *tmps, *filename;
      int fd, i;
  
-@@ -58,11 +58,22 @@
+@@ -59,11 +59,22 @@
      }
      filename = basename(tmps);
  
@@ -300,7 +395,7 @@ diff -u a/shared/actions.c b/shared/actions.c
      for(i=1; i<1000; i++) {
  	fd = open(*newname, O_WRONLY | O_CREAT | O_EXCL, 0600);
  	if(fd >= 0) {
-@@ -78,9 +89,9 @@
+@@ -79,9 +90,9 @@
      return -1;
  }
  
@@ -312,7 +407,7 @@ diff -u a/shared/actions.c b/shared/actions.c
  
      if(fd<0 || (rename(filename, nuname) && (copied=1) && filecopy(filename, nuname))) {
  	logg("!Can't move file %s\n", filename);
-@@ -97,9 +108,9 @@
+@@ -98,9 +109,9 @@
      if(nuname) free(nuname);
  }
  
@@ -324,7 +419,7 @@ diff -u a/shared/actions.c b/shared/actions.c
  
      if(fd < 0 || filecopy(filename, nuname)) {
  	logg("!Can't copy file '%s'\n", filename);
-@@ -112,7 +123,7 @@
+@@ -113,7 +124,7 @@
      if(nuname) free(nuname);
  }
  
@@ -336,7 +431,7 @@ diff -u a/shared/actions.c b/shared/actions.c
 diff -u a/shared/actions.h b/shared/actions.h
 --- a/shared/actions.h	2015-04-22 13:50:12.000000000 -0600
 +++ b/shared/actions.h	2015-07-20 21:09:49.000000000 -0600
-@@ -23,7 +23,7 @@
+@@ -24,7 +24,7 @@
  
  #include "shared/optparser.h"
  
@@ -346,7 +441,7 @@ diff -u a/shared/actions.h b/shared/actions.h
  extern unsigned int notremoved, notmoved;
  
 EOF
-    make
+    make -j8
 
 else
     echo "Yes"
@@ -404,8 +499,16 @@ sed "
 /^Example/d
 \$a\\
 LogFile $CLAMD_LOG\\
+LogTime yes\\
+MaxDirectoryRecursion 20\\
 LocalSocket /tmp/clamd.socket\\
 " "$CLAMD_CONF.sample" > "$TMPFILE"
+
+for p in "${EXCLUDE_DIR_PATTERNS[@]}"
+do
+    echo ExcludePath $p >> "$TMPFILE"
+done
+
 if cmp -s "$TMPFILE" "$CLAMD_CONF" 
 then
     echo Yes
@@ -498,7 +601,7 @@ else
     echo "No.  Building and installing it."
     cd "$FSWATCH_SRC"
 
-    make
+    make -j8
     echo "Password needed to run sudo make install"
     sudo make install
     sudo chown root:wheel "$FSWATCH_INS/bin/fswatch"
@@ -507,21 +610,12 @@ else
 fi
 
 echo Creating scaniffile
-#if [ -f \"\$1\" ]
-#then
-#output=\`$CLAMAV_INS/bin/clamdscan --config-file=$CLAMD_CONF --move=$INSTALLDIR/quarantine \"\$1\"\`
-#case \$? in 
-#1) osascript -e \"display notification \\\"\$output\\\" with title \\\"ClamAV\\\"\";;
-#2) osascript -e \"display notification \\\"Active monitor exiting because clamd is not running\\\" with title \\\"ClamAV\\\"\";;
-#test \$? == \"1\" && 
-#fi
-
 echo "#!/bin/bash
 #this is invoked by fswatch.  It scans if its argument is a file
 if [ -f \"\$1\" ]
 then
   output=\`\"$CLAMAV_INS/bin/clamdscan\" -v --config-file=\"$CLAMD_CONF\" --move=\"$QUARANTINE_DIR\" --no-summary \"\$1\"\`
-  #test \$? == \"1\" && osascript -e \"display notification \\\"\$output\\\" with title \\\"ClamAV\\\"\"
+  test \$? == \"1\" && osascript -e \"display notification \\\"\$output\\\" with title \\\"MacClam\\\" subtitle \\\"\$1\\\"\" &
   echo \"\$output\"
 fi
 " > "$INSTALLDIR/scaniffile"
@@ -532,22 +626,41 @@ fi #end if [ -t 0 ]
 CLAMD_CONF="$CLAMAV_INS/etc/clamd.conf"
 FRESHCLAM_CONF="$CLAMAV_INS/etc/freshclam.conf"
 
-echo "Updating crontab"
-crontab <(cat <(crontab -l|sed '/# BEGIN MACCLAM/,/# END MACCLAM/d;/MacClam/d'); echo "# BEGIN MACCLAM
+echo -n Is crontab up to date?...
+CURRENT_CRONTAB=`crontab -l |awk '/# BEGIN MACCLAM/,/# END MACCLAM/'`
+EXPECTED_CRONTAB="# BEGIN MACCLAM
 $CRONTAB
-# END MACCLAM")
+# END MACCLAM"
+if [ "$CURRENT_CRONTAB" == "$EXPECTED_CRONTAB" ]
+then
+    echo Yes
+else
+    if [ -t 0 ]
+    then
+        echo No.  Updating it.
+        crontab <(cat <(crontab -l|sed '/# BEGIN MACCLAM/,/# END MACCLAM/d;/MacClam/d'); echo "$EXPECTED_CRONTAB")
+    else
+        echo No.  Run $0 from the command line to update it.
+    fi
+fi
 
 echo
-echo "----------------------------"
-echo " Updating ClamAV Signatures"
-echo "----------------------------"
+echo "---------------------------------------"
+echo " Checking for ClamAV Signature Updates "
+echo "---------------------------------------"
 echo
-$CLAMAV_INS/bin/freshclam --config-file="$FRESHCLAM_CONF" || true
+
+if [ -t 0 ]
+then
+    $CLAMAV_INS/bin/freshclam --config-file="$FRESHCLAM_CONF" || true
+else
+    $CLAMAV_INS/bin/freshclam --quiet --config-file="$FRESHCLAM_CONF" || true
+fi
 
 echo
-echo "------------------"
-echo " Running Software"
-echo "------------------"
+echo "-----------------------------"
+echo " Ensure Services are Running"
+echo "-----------------------------"
 echo
 echo -n Is clamd runnning?...
 
@@ -585,13 +698,25 @@ else
 fi
 
 echo -n Is fswatch running?...
+
 FSWATCH_CMD='"$FSWATCH_INS/bin/fswatch" -E -e "$QUARANTINE_DIR" "${EXCLUDE_DIR_PATTERNS[@]/#/-e}" "${EXCLUDE_FILE_PATTERNS[@]/#/-e}" -e "$MONITOR_LOG" -e "$CLAMD_LOG" -e "$CRON_LOG" "${MONITOR_DIRS[@]}"'
+EXPANDED_FSWATCH_CMD="`eval echo $FSWATCH_CMD`"
+
+function runfswatch {
+echo "#!/bin/bash
+#Launches fswatch and sends its output to scaniffile
+$EXPANDED_FSWATCH_CMD | while read line; do \"$INSTALLDIR/scaniffile\" \"\$line\"; done >> \"$MONITOR_LOG\" 2>&1
+" > "$INSTALLDIR/scanwatchoutput"
+chmod +x "$INSTALLDIR/scanwatchoutput"
+script -q /dev/null "$INSTALLDIR/scanwatchoutput"
+}
+
 if PID=`pgrep fswatch`
 then
     echo Yes
 
     echo -n Is it running the latest version and configuration?...
-    if [ "`ps -o command= $PID`" == "`eval echo $FSWATCH_CMD`" ]
+    if [ "`ps -o command= $PID`" == "$EXPANDED_FSWATCH_CMD" ]
     then
         echo Yes
     else
@@ -599,27 +724,23 @@ then
         then
             echo No.  Restarting.
             sudo killall fswatch
-            eval "$FSWATCH_CMD" | while read line; do "$INSTALLDIR/scaniffile" "$line"; done >> "$MONITOR_LOG" 2>&1 & disown
+            runfswatch &
         else
             echo No.  Run $0 from the command line to update it.
         fi
     fi
 else
     echo No.  Starting it.
-    eval "$FSWATCH_CMD" | while read line; do "$INSTALLDIR/scaniffile" "$line"; done >> "$MONITOR_LOG" 2>&1 & disown
+    runfswatch &
 fi
 
 echo Monitoring ${MONITOR_DIRS[@]}
-
+echo
 if [ "$1" ]
 then
-    if ! [ -t 0 ] && pgrep clamscan
-    then
-        echo "It's time to scan $1, but a previous clamscan is still running.  Not starting another one"
-    else
-        echo "Scanning $@"
-        "$CLAMAV_INS/bin/clamscan" -r --exclude-dir="$QUARANTINE_DIR" "${EXCLUDE_DIR_PATTERNS[@]/#/--exclude-dir=}" "${EXCLUDE_FILE_PATTERNS[@]/#/--exclude=}" --move="$QUARANTINE_DIR" "$@"
-    fi
+    set -x
+    "$CLAMAV_INS/bin/clamdscan" --move="$QUARANTINE_DIR" "$@"
+    exit
 elif [ -t 0 ]
 then
     echo
@@ -712,11 +833,15 @@ function max(a,b){return a>b?a:b}
         echo
         echo "Stopped showing activity.  Scan services continue to run."
         echo "Run the script again at any time to view activity."
+        echo "Run 'MacClam.sh help' for more commands."
     }
 fi
 
+if [ ! -t 0 ]
+then
 echo
 echo "--------------------------------------------------"
 echo " Finished MacClam.sh `date`"
 echo "--------------------------------------------------"
 echo
+fi
