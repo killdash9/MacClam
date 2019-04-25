@@ -72,7 +72,7 @@ or directories.  Multiple files or directories can be specified.
 
 `./MacClam.sh uninstall`
 
-Uninstalls MacClam.  More specifically, it stops crond and fswatch.
+Uninstalls MacClam.  More specifically, it stops clamd and fswatch.
 It removes MacClam entries from the crontab.  It moves the quarantine
 directory from the MacClam installation directory to
 ~/MacClam_quarantine, just in case there's something in there you
@@ -105,7 +105,7 @@ MacClam performs three types of scans:
    directories are monitored.
 2. Scheduled scanning: MacClam will perform recursive scans of
    directories at scheduled times.  By default, the entire hard drive
-   is scanned once a week.
+   is scanned once a week.  Scheduling is done with cron.
 3. On-demand scanning: Running `MacClam.sh` with one or more file or
    directory arguments will scan the files or directories specified.
 
