@@ -17,8 +17,18 @@ the command line.
 
 You will need to have Apple's <a
 href="https://developer.apple.com/library/ios/technotes/tn2339/_index.html">Xcode
-command line tools</a> installed.  I have tested MacClam on Yosemite,
-but it may also work in other versions of OS X.
+command line tools</a> installed and/or install the macOS headers
+package.  I have tested MacClam on Mojave (macOS 10.14).  but it may
+also work in other versions of macOS.
+
+For Mojave, I was able to install the required dependencies by running
+the following:
+
+    xcode-select --install
+    sudo installer -pkg /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg -target /
+
+Depending on which version of macOS you are on, you may only need to
+run one of the above commands.
 
 ## Installation ##
 
