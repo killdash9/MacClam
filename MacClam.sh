@@ -27,7 +27,7 @@ popd > /dev/null
 #
 # To uninstall MacClam.sh, run `MacClam.sh uninstall'.
 #
-# You can customize the following variables to suite your tastes.  If
+# You can customize the following variables to suit your tastes.  If
 # you change them, run this script again to apply your settings.
 # 
 
