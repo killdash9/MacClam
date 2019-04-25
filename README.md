@@ -38,8 +38,11 @@ the script.
 By default, the installation directory is `~/MacClam`.  This directory
 contains all the source, binaries, log files, and quarantine folder.
 The only artifact of the installation outside this directory is the
-crontab.  MacClam can be totally uninstalled up by running
-`./MacClam.sh uninstall`.
+crontab and the `MacClam.sh` script itself, which is required for
+MacClam to function.  If you want to move the `MacClam.sh` script to
+another location, just re-run it from the new location and the crontab
+references will be updated.  It can be totally uninstalled up by
+running `./MacClam.sh uninstall`.
 
 ## Usage ##
 
@@ -59,7 +62,13 @@ or directories.  Multiple files or directories can be specified.
 
 `./MacClam.sh uninstall`
 
-Uninstalls MacClam.
+Uninstalls MacClam.  More specifically, it stops crond and fswatch.
+It removes MacClam entries from the crontab.  It moves the quarantine
+directory from the MacClam installation directory to
+~/MacClam_quarantine, just in case there's something in there you
+want.  It deletes the MacClam installation directory which contains
+clamav and fswatch.  It does not delete the MacClam.sh file, and you
+can reinstall MacClam by running it again.
 
 ## Customization ##
 
