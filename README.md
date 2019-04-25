@@ -65,12 +65,21 @@ running `./MacClam.sh uninstall`.
 * Sets active monitoring to run on startup (also done in crontab)
 * If run from a terminal, it will show any current scanning activity
 
-`./MacClam.sh /path/file_or_directory ...`
+    ./MacClam.sh /path/file_or_directory ...
 
 Does everything previously listed, and then runs clamscan on the files
 or directories.  Multiple files or directories can be specified.
 
-`./MacClam.sh uninstall`
+    ./MacClam.sh quarantine
+
+Opens the quarantine folder in Finder.  By default, this is
+`~/MacClam/quarantine`
+
+    ./MacClam.sh help
+    
+Displays a help message.
+
+    ./MacClam.sh uninstall
 
 Uninstalls MacClam.  More specifically, it stops clamd and fswatch.
 It removes MacClam entries from the crontab.  It moves the quarantine
