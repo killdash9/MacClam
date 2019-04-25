@@ -28,7 +28,7 @@ the following:
     sudo installer -pkg /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg -target /
 
 Depending on which version of macOS you are on, you may only need to
-run one of the above commands.
+run one or both of the above commands.
 
 ## Installation ##
 
