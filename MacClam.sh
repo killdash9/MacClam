@@ -31,7 +31,7 @@ popd > /dev/null
 # you change them, run this script again to apply your settings.
 # 
 
-
+#The  top level installation directory.  It must not contain spaces or the builds won't work.
 INSTALLDIR="$HOME/MacClam"
 
 # Directories to monitor
@@ -103,7 +103,7 @@ then
         sudo killall clamd fswatch || true
         echo "Uninstalling from crontab"
         crontab <(cat <(crontab -l|sed '/# BEGIN MACCLAM/,/# END MACCLAM/d;/MacClam/d'));
-        if [ -d "$QUARANTINE_DIR" -a "`ls "$QUARANTINE_DIR"`" ]
+        if [ -d "$QUARANTINE_DIR" -a "`ls "$QUARANTINE_DIR" 2>/dev/null`" ]
         then
             echo "Moving $QUARANTINE_DIR to $HOME/MacClam_quarantine in case there's something you want in there."
             if [ -d "$HOME/MacClam_quarantine" ]
@@ -216,7 +216,7 @@ then
 else
     echo "No.  Building it."
     cd "$OPENSSL_SRC"
-    ./Configure darwin64-x86_64-cc enable-ec_nistp_64_gcc_128 no-ssl2 no-ssl3 no-comp --openssldir=$OPENSSL_INS --prefix=$OPENSSL_INS &&
+    ./Configure darwin64-x86_64-cc enable-ec_nistp_64_gcc_128 no-ssl3 no-comp --openssldir="$OPENSSL_INS" --prefix="$OPENSSL_INS" &&
         make -j8
 fi
 
@@ -299,148 +299,6 @@ if [ "$CLAMAV_SRC/Makefile" -nt "$CLAMAV_SRC/clamscan/clamscan" ]
 then
     echo "No.  Building it."
     cd "$CLAMAV_SRC"
-
-    echo Patching it
-
-    # This bit of code modifies how quarantined files are named.  The
-    # patched name includes the original location of the file, the
-    # name of the virus found in the file and the timestamp when it
-    # was quarantined.  This allows you to know where it came from and
-    # put it back in its original location if it shouldn't have been
-    # quarantined.
-    
-    patch -p1 <<'EOF'
-diff -u a/clamdscan/proto.c b/clamdscan/proto.c
---- a/clamdscan/proto.c	2015-04-22 13:49:57.000000000 -0600
-+++ b/clamdscan/proto.c	2015-07-20 21:44:56.000000000 -0600
-@@ -340,12 +340,12 @@
- 		if(filename) {
- 		    if(scantype >= STREAM) {
- 			logg("~%s%s FOUND\n", filename, colon);
--			if(action) action(filename);
-+			if(action) action(filename,*(colon+1) && *(colon+2)? colon+2:NULL);
- 		    } else {
- 			logg("~%s FOUND\n", bol);
- 			*colon = '\0';
- 			if(action)
--			    action(bol);
-+               action(bol,*(colon+1) && *(colon+2)? colon+2:NULL);
- 		    }
- 		}
- 	    } else if(!memcmp(eol-7, " ERROR", 6)) {
-@@ -528,7 +528,7 @@
- 		c->infected++;
- 		c->printok = 0;
- 		logg("~%s%s\n", filename, colon);
--		if(action) action(filename);
-+		if(action) action(filename,*(colon+1) && *(colon+2)? colon+2:NULL);
- 	    } else if(!memcmp(eol-7, " ERROR", 6)) {
- 		c->errors++;
- 		c->printok = 0;
-diff -u a/clamscan/manager.c b/clamscan/manager.c
---- a/clamscan/manager.c	2015-04-22 13:49:58.000000000 -0600
-+++ b/clamscan/manager.c	2015-07-20 21:16:04.000000000 -0600
-@@ -423,7 +423,7 @@
-     close(fd);
- 
-     if(ret == CL_VIRUS && action)
--        action(filename);
-+        action(filename,virname);
- }
- 
- static void scandirs(const char *dirname, struct cl_engine *engine, const struct optstruct *opts, struct cl_scan_options *options, unsigned int depth, dev_t dev)
-diff -u a/shared/actions.c b/shared/actions.c
---- a/shared/actions.c	2015-04-22 13:50:12.000000000 -0600
-+++ b/shared/actions.c	2015-07-20 21:57:01.000000000 -0600
-@@ -40,7 +40,7 @@
- #include "shared/misc.h"
- #include "shared/actions.h"
- 
--void (*action)(const char *) = NULL;
-+void (*action)(const char *, const char*) = NULL;
- unsigned int notmoved = 0, notremoved = 0;
- 
- static char *actarget;
-@@ -48,7 +48,7 @@
- 
- 
- 
--static int getdest(const char *fullpath, char **newname) {
-+static int getdest(const char *fullpath, char* virname, char **newname) {
-     char *tmps, *filename;
-     int fd, i;
- 
-@@ -59,11 +59,22 @@
-     }
-     filename = basename(tmps);
- 
--    if(!(*newname = (char *)malloc(targlen + strlen(filename) + 6))) {
-+    if (!virname) virname="";
-+    char curtime[sizeof "2011-10-08 070709"];
-+    if(!(*newname = (char *)malloc(targlen + strlen(tmps) + 1 + sizeof(curtime) + 1 + sizeof(virname) + 6))) {
- 	free(tmps);
- 	return -1;
-     }
--    sprintf(*newname, "%s"PATHSEP"%s", actarget, filename);
-+    time_t now;
-+    time(&now);
-+    strftime(curtime, sizeof curtime, "%F %H%M%S", localtime(&now));
-+    sprintf(*newname, "%s"PATHSEP"%s %s %s", actarget, fullpath, virname, curtime);
-+    // replace path separators
-+    for(char* c=*newname + strlen(actarget) + 1;*c;c++) {
-+      if (*c == '/') {
-+        *c=':';
-+      }
-+    }
-     for(i=1; i<1000; i++) {
- 	fd = open(*newname, O_WRONLY | O_CREAT | O_EXCL, 0600);
- 	if(fd >= 0) {
-@@ -79,9 +90,9 @@
-     return -1;
- }
- 
--static void action_move(const char *filename) {
-+static void action_move(const char *filename, const char* virname) {
-     char *nuname;
--    int fd = getdest(filename, &nuname), copied = 0;
-+    int fd = getdest(filename, virname, &nuname), copied = 0;
- 
-     if(fd<0 || (rename(filename, nuname) && (copied=1) && filecopy(filename, nuname))) {
- 	logg("!Can't move file %s\n", filename);
-@@ -98,9 +109,9 @@
-     if(nuname) free(nuname);
- }
- 
--static void action_copy(const char *filename) {
-+static void action_copy(const char *filename, const char* virname) {
-     char *nuname;
--    int fd = getdest(filename, &nuname);
-+    int fd = getdest(filename, virname, &nuname);
- 
-     if(fd < 0 || filecopy(filename, nuname)) {
- 	logg("!Can't copy file '%s'\n", filename);
-@@ -113,7 +124,7 @@
-     if(nuname) free(nuname);
- }
- 
--static void action_remove(const char *filename) {
-+static void action_remove(const char *filename, const char* virname) {
-     if(unlink(filename)) {
- 	logg("!Can't remove file '%s'.\n", filename);
- 	notremoved++;
-diff -u a/shared/actions.h b/shared/actions.h
---- a/shared/actions.h	2015-04-22 13:50:12.000000000 -0600
-+++ b/shared/actions.h	2015-07-20 21:09:49.000000000 -0600
-@@ -24,7 +24,7 @@
- 
- #include "shared/optparser.h"
- 
--extern void (*action)(const char *);
-+extern void (*action)(const char *, const char *);
- int actsetup(const struct optstruct *opts);
- extern unsigned int notremoved, notmoved;
- 
-EOF
     make -j8
 
 else
@@ -454,8 +312,8 @@ then
     echo "No.  Installing it."
     cd "$CLAMAV_SRC"
 
-    make #run make again just in case
-    echo "Password needed to run sudo make install"
+    make -j8 #run make again just in case
+    echo "Password needed to run \"sudo make install\" for clamav"
     sudo make install
 
     if [ ! "$CLAMAV_INS" ]
@@ -610,15 +468,20 @@ else
 fi
 
 echo Creating scaniffile
-echo "#!/bin/bash
-#this is invoked by fswatch.  It scans if its argument is a file
-if [ -f \"\$1\" ]
+cat > "$INSTALLDIR/scaniffile" <<EOF
+#!/bin/bash
+#this is invoked on files detected by fswatch.  It scans if its argument is a file
+if [ -f "\$1" ]
 then
-  output=\`\"$CLAMAV_INS/bin/clamdscan\" -v --config-file=\"$CLAMD_CONF\" --move=\"$QUARANTINE_DIR\" --no-summary \"\$1\"\`
-  test \$? == \"1\" && osascript -e \"display notification \\\"\$output\\\" with title \\\"MacClam\\\" subtitle \\\"\$1\\\"\" &
-  echo \"\$output\"
+  output=\`"$CLAMAV_INS/bin/clamdscan" -v --config-file="$CLAMD_CONF" --move="$QUARANTINE_DIR" --no-summary "\$1"\`
+  if [ \$? == 1 ]
+  then
+      echo \`date\` \$output >> "$QUARANTINE_DIR/quarantine.log"
+      osascript -e "display notification \"\$output\" with title \"MacClam\" subtitle \"\$1\"" &
+  fi
+  echo \$output
 fi
-" > "$INSTALLDIR/scaniffile"
+EOF
 chmod +x "$INSTALLDIR/scaniffile"
 
 fi #end if [ -t 0 ] 
@@ -652,9 +515,9 @@ echo
 
 if [ -t 0 ]
 then
-    $CLAMAV_INS/bin/freshclam --config-file="$FRESHCLAM_CONF" || true
+    "$CLAMAV_INS/bin/freshclam" --config-file="$FRESHCLAM_CONF" || true
 else
-    $CLAMAV_INS/bin/freshclam --quiet --config-file="$FRESHCLAM_CONF" || true
+    "$CLAMAV_INS/bin/freshclam "--quiet --config-file="$FRESHCLAM_CONF" || true
 fi
 
 echo
@@ -664,7 +527,13 @@ echo "-----------------------------"
 echo
 echo -n Is clamd runnning?...
 
-CLAMD_CMD='$CLAMAV_INS/sbin/clamd --config-file=$CLAMD_CONF'
+CLAMD_CMD_ARGS=(
+    "$CLAMAV_INS/sbin/clamd"
+    "--config-file=$CLAMD_CONF"
+)
+CLAMD_CMD="$(printf " %q" "${CLAMD_CMD_ARGS[@]}")"
+
+#CLAMD_CMD='$CLAMAV_INS/sbin/clamd --config-file=$CLAMD_CONF'
 if PID=`pgrep clamd`
 then
     echo Yes
@@ -698,17 +567,31 @@ else
 fi
 
 echo -n Is fswatch running?...
+FSWATCH_CMD_ARGS=(
+    "$FSWATCH_INS/bin/fswatch"
+    -E
+    -e "$QUARANTINE_DIR"
+    "${EXCLUDE_DIR_PATTERNS[@]/#/-e}"
+    "${EXCLUDE_FILE_PATTERNS[@]/#/-e}"
+    -e "$MONITOR_LOG"
+    -e "$CLAMD_LOG"
+    -e "$CRON_LOG"
+    "${MONITOR_DIRS[@]}"
+)
 
-FSWATCH_CMD='"$FSWATCH_INS/bin/fswatch" -E -e "$QUARANTINE_DIR" "${EXCLUDE_DIR_PATTERNS[@]/#/-e}" "${EXCLUDE_FILE_PATTERNS[@]/#/-e}" -e "$MONITOR_LOG" -e "$CLAMD_LOG" -e "$CRON_LOG" "${MONITOR_DIRS[@]}"'
-EXPANDED_FSWATCH_CMD="`eval echo $FSWATCH_CMD`"
+#FSWATCH_CMD='"'$FSWATCH_INS'/bin/fswatch" -E -e "'$QUARANTINE_DIR'" "'${EXCLUDE_DIR_PATTERNS[@]/#/-e}'" "'${EXCLUDE_FILE_PATTERNS[@]/#/-e}'" -e "'$MONITOR_LOG'" -e "'$CLAMD_LOG'" -e "'$CRON_LOG'" "'${MONITOR_DIRS[@]}'"'
+
+FSWATCH_CMD="$(printf " %q" "${FSWATCH_CMD_ARGS[@]}")"
 
 function runfswatch {
-echo "#!/bin/bash
+    cat > "$INSTALLDIR/runfswatch" <<EOF 
+#!/bin/bash
 #Launches fswatch and sends its output to scaniffile
-$EXPANDED_FSWATCH_CMD | while read line; do \"$INSTALLDIR/scaniffile\" \"\$line\"; done >> \"$MONITOR_LOG\" 2>&1
-" > "$INSTALLDIR/scanwatchoutput"
-chmod +x "$INSTALLDIR/scanwatchoutput"
-script -q /dev/null "$INSTALLDIR/scanwatchoutput"
+$FSWATCH_CMD | while read line; do "$INSTALLDIR/scaniffile" "\$line"; done >> "$MONITOR_LOG" 2>&1
+EOF
+
+    chmod +x "$INSTALLDIR/runfswatch"
+    script -q /dev/null "$INSTALLDIR/runfswatch"
 }
 
 if PID=`pgrep fswatch`
@@ -716,7 +599,7 @@ then
     echo Yes
 
     echo -n Is it running the latest version and configuration?...
-    if [ "`ps -o command= $PID`" == "$EXPANDED_FSWATCH_CMD" ]
+    if [ "`ps -o command= $PID`" == "`eval echo $FSWATCH_CMD`" ]
     then
         echo Yes
     else
@@ -734,6 +617,7 @@ else
     runfswatch &
 fi
 
+echo
 echo Monitoring ${MONITOR_DIRS[@]}
 echo
 if [ "$1" ]
