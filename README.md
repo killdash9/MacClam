@@ -13,22 +13,22 @@ changed files, which are then sent to clamd for scanning.  Periodic
 full scans are scheduled with cron.  It also provides a way to scan
 individual files or directories on demand from the command line.
 
+I have tested MacClam on Mojave (macOS 10.14).  but it may also work
+in other versions of macOS.
+
 ## Prerequisites ##
 
 You will need to have Apple's <a
 href="https://developer.apple.com/library/ios/technotes/tn2339/_index.html">Xcode
-command line tools</a> installed and/or install the macOS headers
-package.  I have tested MacClam on Mojave (macOS 10.14).  but it may
-also work in other versions of macOS.
-
-For Mojave, I was able to install the required dependencies by running
-the following:
+command line tools</a> which can be installed with
 
     xcode-select --install
-    sudo installer -pkg /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg -target /
 
-Depending on which version of macOS you are on, you may only need to
-run one or both of the above commands.
+Then click "Install". After you have installed the command line tools,
+if you are on Mojave, you will also need to install the macOS headers
+package with
+
+    sudo installer -pkg /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg -target /
 
 ## Installation ##
 
