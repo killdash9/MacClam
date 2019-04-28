@@ -95,7 +95,7 @@ fi
 
 if [ "$1" == "uninstall" ]
 then
-    read -r -p "Are you sure you want to install MacClam? [y/N] " response
+    read -r -p "Are you sure you want to uninstall MacClam? [y/N] " response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
     then
         echo "Uninstalling MacClam"
@@ -420,6 +420,18 @@ fi
 CLAMD_CONF="$CLAMAV_INS/etc/clamd.conf"
 FRESHCLAM_CONF="$CLAMAV_INS/etc/freshclam.conf"
 
+function kill_clamd {
+    sudo killall clamd
+    echo Giving it time to stop...
+    sleep 3;
+    if pgrep clamd
+    then
+        echo "It's still running, using kill -9"
+        sudo killall -9 clamd
+        echo "Waiting one second"
+        sleep 1;
+    fi
+}
 echo -n "Is clamd.conf up to date?..."
 TMPFILE=`mktemp -dt "MacClam"`/clamd.conf
 sed "
@@ -427,7 +439,7 @@ sed "
 \$a\\
 LogFile $CLAMD_LOG\\
 LogTime yes\\
-MaxDirectoryRecursion 20\\
+MaxDirectoryRecursion 30\\
 LocalSocket /tmp/clamd.socket\\
 " "$CLAMD_CONF.sample" > "$TMPFILE"
 
@@ -442,6 +454,8 @@ then
 else
     echo "No.  Updating $CLAMD_CONF"
     sudo cp "$TMPFILE" "$CLAMD_CONF"
+    echo "Killing clamd if it's running"
+    kill_clamd
 fi
 rm "$TMPFILE"
 
@@ -614,16 +628,7 @@ then
         if [ -t 0 ]
         then
             echo No.  Killing it.
-            sudo killall clamd
-            echo Giving it time to stop...
-            sleep 3;
-            if pgrep clamd
-            then
-                echo "It's still running, using kill -9"
-                sudo killall -9 clamd
-                echo "Waiting one second"
-                sleep 1;
-            fi
+            kill_clamd
             echo "Starting clamd"
             eval $CLAMD_CMD
         else
