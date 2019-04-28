@@ -230,7 +230,76 @@ else
     make install_sw
 fi
 
+echo -n What is the latest version of pcre?...
+PCRE_VER=`curl -s --connect-timeout 15  https://www.pcre.org/|grep 'is at version '|grep -Eo '8\.[0-9]+'`
+PCRE_DOWNLOAD_LINK="https://ftp.pcre.org/pub/pcre/pcre-$PCRE_VER.tar.gz"
+
+if [[ ! "$PCRE_VER" =~ ^[0-9]+\.[0-9]+$ ]]
+then
+    PCRE_VER='' #we didn't get a version number
+fi
+
+if [ ! "$PCRE_VER" ]
+then
+    echo "Can't lookup latest pcre version.  Looking for already-installed version."
+    PCRE_VER=`cat $INSTALLDIR/pcre.ver`
+else
+    echo "$PCRE_VER"
+    echo "$PCRE_VER" > "$INSTALLDIR/pcre.ver"
+fi
+
+if [ ! "$PCRE_VER" ]
+then
+    echo "No pcre installed and can't update.  Can't proceed."
+    exit 1
+fi
+
+PCRE_TAR="$INSTALLDIR/pcre-$PCRE_VER.tar.gz"
+PCRE_SRC="$INSTALLDIR/pcre-$PCRE_VER"
+PCRE_INS="$INSTALLDIR/pcre-installation-$PCRE_VER"
+
+echo -n "Has pcre-$PCRE_VER been downloaded?..."
+if [ -f "$PCRE_TAR" ] && tar -tf "$PCRE_TAR" > /dev/null
+then
+    echo "Yes"
+else
+    echo "No.  Downloading $PCRE_DOWNLOAD_LINK to $PCRE_TAR"
+    curl --connect-timeout 15  -L -o "$PCRE_TAR" "$PCRE_DOWNLOAD_LINK" 
+fi
+
+echo -n "Has pcre-$PCRE_VER been extracted?..."
+if [ -d "$PCRE_SRC" ]
+then
+    echo "Yes"
+else
+    echo "No.  Extracting it."
+    cd "$INSTALLDIR"
+    tar -xf "$PCRE_TAR"
+fi
+
+echo -n "Has pcre-$PCRE_VER been built?..."
+if [ -f "$PCRE_SRC/.libs/libpcre.a" ]
+then
+    echo "Yes"
+else
+    echo "No.  Building it."
+    cd "$PCRE_SRC"
+    ./configure --prefix="$PCRE_INS" &&
+        make -j8
+fi
+
+echo -n "Has pcre-$PCRE_VER been installed?..."
+if [ "$PCRE_INS/lib/libpcre.a" -nt "$PCRE_SRC/.libs/libpcre.a" ]
+then
+    echo "Yes"
+else
+    echo "No.  Installing it."
+    cd "$PCRE_SRC"
+    make install
+fi
+
 echo -n "What is the latest version of clamav?..."
+
 
 #ClamAV stores its version in dns
 CLAMAV_VER=`dig TXT +noall +answer +time=3 +tries=1 current.cvd.clamav.net| sed 's,.*"\([^:]*\):.*,\1,'`
@@ -291,7 +360,7 @@ then
 else
     echo "No.  Configuring it."
     cd "$CLAMAV_SRC"
-    ./configure --disable-dependency-tracking --enable-llvm=no --enable-clamdtop --with-user=_clamav --with-group=_clamav --enable-all-jit-targets --with-openssl="$OPENSSL_INS" --prefix="$CLAMAV_INS"
+    ./configure --disable-dependency-tracking --enable-llvm=no --enable-clamdtop --with-user=_clamav --with-group=_clamav --enable-all-jit-targets --with-openssl="$OPENSSL_INS" --with-pcre="$PCRE_INS" --prefix="$CLAMAV_INS"
 fi
 
 echo -n "Has clamav-$CLAMAV_VER been built?..."
