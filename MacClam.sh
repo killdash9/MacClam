@@ -231,8 +231,8 @@ else
 fi
 
 echo -n What is the latest version of pcre?...
-PCRE_VER=`curl -s --connect-timeout 15  https://www.pcre.org/|grep 'is at version '|grep -Eo '8\.[0-9]+'`
-PCRE_DOWNLOAD_LINK="https://ftp.pcre.org/pub/pcre/pcre-$PCRE_VER.tar.gz"
+PCRE_VER=`curl -s --connect-timeout 15  http://www.pcre.org/|grep 'is at version '|grep -Eo '8\.[0-9]+'`
+PCRE_DOWNLOAD_LINK="http://ftp.pcre.org/pub/pcre/pcre-$PCRE_VER.tar.gz"
 
 if [[ ! "$PCRE_VER" =~ ^[0-9]+\.[0-9]+$ ]]
 then
