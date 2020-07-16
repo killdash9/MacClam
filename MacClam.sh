@@ -1,7 +1,7 @@
 #!/bin/bash
 
-pushd `dirname $0` > /dev/null
-SCRIPTPATH=`pwd`/`basename $0`
+pushd "$(dirname "$0")" > /dev/null
+SCRIPTPATH=$(pwd)/$(basename "$0")
 popd > /dev/null
 
 # This script is an all-in-one solution for ClamAV scanning on a Mac.
@@ -75,7 +75,7 @@ CRONTAB='
 
 set -e
 
-if [ "$1" == "help" -o "$1" == "-help" -o  "$1" == "--help" ]
+if [ "$1" == "help" ] || [ "$1" == "-help" ] || [ "$1" == "--help" ]
 then
     echo "Usage:
 
@@ -103,7 +103,7 @@ then
         sudo killall clamd fswatch || true
         echo "Uninstalling from crontab"
         crontab <(cat <(crontab -l|sed '/# BEGIN MACCLAM/,/# END MACCLAM/d;/MacClam/d'));
-        if [ -d "$QUARANTINE_DIR" -a "`ls "$QUARANTINE_DIR" 2>/dev/null`" ]
+        if [ -d "$QUARANTINE_DIR" ] && [ "$(ls "$QUARANTINE_DIR" 2>/dev/null)" ]
         then
             echo "Moving $QUARANTINE_DIR to $HOME/MacClam_quarantine in case there's something you want in there."
             if [ -d "$HOME/MacClam_quarantine" ]
@@ -126,7 +126,7 @@ if [ ! -t 0 ]
 then
 echo
 echo "--------------------------------------------------"
-echo " Starting MacClam.sh `date`"
+echo " Starting MacClam.sh $(date)"
 echo "--------------------------------------------------"
 echo
 fi
@@ -139,9 +139,9 @@ test -f "$CRON_LOG" || touch "$CRON_LOG"
 test -f "$CLAMD_LOG" || touch "$CLAMD_LOG"
 test -f "$MONITOR_LOG" || touch "$MONITOR_LOG"
 test -d "$QUARANTINE_DIR" || { echo "Creating quarantine directory $QUARANTINE_DIR"; mkdir -p "$QUARANTINE_DIR"; }
-test -f "$INSTALLDIR/clamav.ver" && CLAMAV_INS="$INSTALLDIR/clamav-installation-`cat $INSTALLDIR/clamav.ver`"
+test -f "$INSTALLDIR/clamav.ver" && CLAMAV_INS="$INSTALLDIR/clamav-installation-$(cat "$INSTALLDIR/clamav.ver")"
 
-test -f "$INSTALLDIR/fswatch.ver" && FSWATCH_INS="$INSTALLDIR/fswatch-installation-`cat $INSTALLDIR/fswatch.ver`"
+test -f "$INSTALLDIR/fswatch.ver" && FSWATCH_INS="$INSTALLDIR/fswatch-installation-$(cat "$INSTALLDIR/fswatch.ver")"
 
 if [ "$1" == "quarantine" ]
 then
@@ -162,7 +162,7 @@ echo "-----------------------"
 echo
 echo -n "What is the latest version of openssl?..."
 
-OPENSSL_DOWNLOAD_LINK=https://www.openssl.org/source/`curl -s https://www.openssl.org/source/|grep -Eo 'openssl-1\.1\.1.{0,2}\.tar.gz'|head -1`
+OPENSSL_DOWNLOAD_LINK=https://www.openssl.org/source/$(curl -s https://www.openssl.org/source/|grep -Eo 'openssl-1\.1\.1.{0,2}\.tar.gz'|head -1)
 OPENSSL_VER="${OPENSSL_DOWNLOAD_LINK#https://www.openssl.org/source/openssl-}"
 OPENSSL_VER="${OPENSSL_VER%.tar.gz}"
 
@@ -174,7 +174,7 @@ fi
 if [ ! "$OPENSSL_VER" ]
 then
     echo "Can't lookup latest openssl version.  Looking for already-installed version."
-    OPENSSL_VER=`cat $INSTALLDIR/openssl.ver`
+    OPENSSL_VER=$(cat "$INSTALLDIR/openssl.ver")
 else
     echo "$OPENSSL_VER"
     echo "$OPENSSL_VER" > "$INSTALLDIR/openssl.ver"
@@ -231,7 +231,7 @@ else
 fi
 
 echo -n What is the latest version of pcre?...
-PCRE_VER=`curl -s --connect-timeout 15  https://www.pcre.org/|grep 'is at version '|grep -Eo '8\.[0-9]+'`
+PCRE_VER=$(curl -s --connect-timeout 15  https://www.pcre.org/|grep 'is at version '|grep -Eo '8\.[0-9]+')
 PCRE_DOWNLOAD_LINK="https://ftp.pcre.org/pub/pcre/pcre-$PCRE_VER.tar.gz"
 
 if [[ ! "$PCRE_VER" =~ ^[0-9]+\.[0-9]+$ ]]
@@ -242,7 +242,7 @@ fi
 if [ ! "$PCRE_VER" ]
 then
     echo "Can't lookup latest pcre version.  Looking for already-installed version."
-    PCRE_VER=`cat $INSTALLDIR/pcre.ver`
+    PCRE_VER=$(cat "$INSTALLDIR/pcre.ver")
 else
     echo "$PCRE_VER"
     echo "$PCRE_VER" > "$INSTALLDIR/pcre.ver"
@@ -302,7 +302,7 @@ echo -n "What is the latest version of clamav?..."
 
 
 #ClamAV stores its version in dns
-CLAMAV_VER=`dig TXT +noall +answer +time=3 +tries=1 current.cvd.clamav.net| sed 's,.*"\([^:]*\):.*,\1,'`
+CLAMAV_VER=$(dig TXT +noall +answer +time=3 +tries=1 current.cvd.clamav.net| sed 's,.*"\([^:]*\):.*,\1,')
 if [[ ! "$CLAMAV_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
 then
     CLAMAV_VER='' #we didn't get a version number
@@ -311,7 +311,7 @@ fi
 if [ ! "$CLAMAV_VER" ]
 then
     echo "Can't lookup latest clamav version.  Looking for already-installed version."
-    CLAMAV_VER=`cat $INSTALLDIR/clamav.ver`
+    CLAMAV_VER=$(cat "$INSTALLDIR/clamav.ver")
 else
     echo "$CLAMAV_VER"
     echo "$CLAMAV_VER" > "$INSTALLDIR/clamav.ver"
@@ -350,8 +350,8 @@ else
     tar -xf "$CLAMAV_TAR"
 fi
 
-CFLAGS="-O2 -g -D_FILE_OFFSET_BITS=64" 
-CXXFLAGS="-O2 -g -D_FILE_OFFSET_BITS=64"
+#CFLAGS="-O2 -g -D_FILE_OFFSET_BITS=64" 
+#CXXFLAGS="-O2 -g -D_FILE_OFFSET_BITS=64"
 
 echo -n "Has the clamav-$CLAMAV_VER build been configured?..."
 if [ -f "$CLAMAV_SRC/Makefile" ]
@@ -433,7 +433,7 @@ function kill_clamd {
     fi
 }
 echo -n "Is clamd.conf up to date?..."
-TMPFILE=`mktemp -dt "MacClam"`/clamd.conf
+TMPFILE=$(mktemp -dt "MacClam")/clamd.conf
 sed "
 /^Example/d
 \$a\\
@@ -445,7 +445,7 @@ LocalSocket /tmp/clamd.socket\\
 
 for p in "${EXCLUDE_DIR_PATTERNS[@]}"
 do
-    echo ExcludePath $p >> "$TMPFILE"
+    echo ExcludePath "$p" >> "$TMPFILE"
 done
 
 if cmp -s "$TMPFILE" "$CLAMD_CONF" 
@@ -460,7 +460,7 @@ fi
 rm "$TMPFILE"
 
 echo -n "Is freshclam.conf up to date?..."
-TMPFILE=`mktemp -dt "MacClam"`/freshclam.conf
+TMPFILE=$(mktemp -dt "MacClam")/freshclam.conf
 sed "
 /^Example/d
 \$a\\
@@ -477,7 +477,7 @@ fi
 rm "$TMPFILE"
 
 echo -n "What is the latest version of fswatch?..."
-FSWATCH_DOWNLOAD_LINK=https://github.com`curl -L -s 'https://github.com/emcrisostomo/fswatch/releases/latest'| grep "/emcrisostomo/fswatch/releases/download/.*tar.gz"|sed 's,.*href *= *"\([^"]*\).*,\1,'`
+FSWATCH_DOWNLOAD_LINK=https://github.com$(curl -L -s 'https://github.com/emcrisostomo/fswatch/releases/latest'| grep "/emcrisostomo/fswatch/releases/download/.*tar.gz"|sed 's,.*href *= *"\([^"]*\).*,\1,')
 FSWATCH_VER="${FSWATCH_DOWNLOAD_LINK#https://github.com/emcrisostomo/fswatch/releases/download/}"
 FSWATCH_VER="${FSWATCH_VER%/fswatch*}"
 
@@ -489,7 +489,7 @@ fi
 if [ ! "$FSWATCH_VER" ]
 then
     echo "Can't lookup latest fswatch version.  Looking for already-installed version."
-    FSWATCH_VER=`cat $INSTALLDIR/fswatch.ver`
+    FSWATCH_VER=$(cat "$INSTALLDIR"/fswatch.ver)
 else
     echo "$FSWATCH_VER"
     echo "$FSWATCH_VER" > "$INSTALLDIR/fswatch.ver"
@@ -535,7 +535,7 @@ else
 fi
 
 echo -n "Has fswatch been installed?..."
-if [ -d $FSWATCH_INS ]
+if [ -d "$FSWATCH_INS" ]
 then
     echo "Yes"
 else
@@ -573,7 +573,7 @@ CLAMD_CONF="$CLAMAV_INS/etc/clamd.conf"
 FRESHCLAM_CONF="$CLAMAV_INS/etc/freshclam.conf"
 
 echo -n Is crontab up to date?...
-CURRENT_CRONTAB=`crontab -l |awk '/# BEGIN MACCLAM/,/# END MACCLAM/'`
+CURRENT_CRONTAB=$(crontab -l |awk '/# BEGIN MACCLAM/,/# END MACCLAM/')
 EXPECTED_CRONTAB="# BEGIN MACCLAM
 $CRONTAB
 # END MACCLAM"
@@ -586,7 +586,7 @@ else
         echo No.  Updating it.
         crontab <(cat <(crontab -l|sed '/# BEGIN MACCLAM/,/# END MACCLAM/d;/MacClam/d'); echo "$EXPECTED_CRONTAB")
     else
-        echo No.  Run $0 from the command line to update it.
+        echo No.  Run "$0" from the command line to update it.
     fi
 fi
 
@@ -617,11 +617,11 @@ CLAMD_CMD_ARGS=(
 CLAMD_CMD="$(printf " %q" "${CLAMD_CMD_ARGS[@]}")"
 
 #CLAMD_CMD='$CLAMAV_INS/sbin/clamd --config-file=$CLAMD_CONF'
-if PID=`pgrep clamd`
+if PID=$(pgrep clamd)
 then
     echo Yes
     echo -n Is it the current version?...
-    if [ "`ps -o command= $PID`" == "`eval echo $CLAMD_CMD`" ]
+    if [ "$(ps -o command= "$PID")" == "$(eval echo "$CLAMD_CMD")" ]
     then
         echo Yes
     else
@@ -630,14 +630,14 @@ then
             echo No.  Killing it.
             kill_clamd
             echo "Starting clamd"
-            eval $CLAMD_CMD
+            eval "$CLAMD_CMD"
         else
-            No.  Run $0 from the command line to update it.
+            No.  Run "$0" from the command line to update it.
         fi
     fi
 else
     echo No.  Starting it.
-    eval $CLAMD_CMD
+    eval "$CLAMD_CMD"
 fi
 
 echo -n Is fswatch running?...
@@ -668,12 +668,12 @@ EOF
     script -q /dev/null "$INSTALLDIR/runfswatch"
 }
 
-if PID=`pgrep fswatch`
+if PID=$(pgrep fswatch)
 then
     echo Yes
 
     echo -n Is it running the latest version and configuration?...
-    if [ "`ps -o command= $PID`" == "`eval echo $FSWATCH_CMD`" ]
+    if [ "$(ps -o command= "$PID")" == "$(eval echo "$FSWATCH_CMD")" ]
     then
         echo Yes
     else
@@ -683,7 +683,7 @@ then
             sudo killall fswatch
             runfswatch &
         else
-            echo No.  Run $0 from the command line to update it.
+            echo No.  Run "$0" from the command line to update it.
         fi
     fi
 else
@@ -692,7 +692,7 @@ else
 fi
 
 echo
-echo Monitoring ${MONITOR_DIRS[@]}
+echo Monitoring "${MONITOR_DIRS[@]}"
 echo
 if [ "$1" ]
 then
@@ -719,9 +719,9 @@ then
     
     (tail -0F "$CLAMD_LOG" "$CRON_LOG" "$MONITOR_LOG" | awk '
 BEGIN {
-    tmax=max(30,'"`tput cols`"')
+    tmax=max(30,'"$(tput cols)"')
     e="\033["
-    viruscnt='"`ls $QUARANTINE_DIR|wc -l`"'
+    viruscnt='"$(ls "$QUARANTINE_DIR"|wc -l)"'
     r="'"$red"'"
     g="'"$green"'"
     y="'"$yellow"'"
@@ -799,7 +799,7 @@ if [ ! -t 0 ]
 then
 echo
 echo "--------------------------------------------------"
-echo " Finished MacClam.sh `date`"
+echo " Finished MacClam.sh $(date)"
 echo "--------------------------------------------------"
 echo
 fi
