@@ -231,8 +231,8 @@ else
 fi
 
 echo -n What is the latest version of pcre?...
-PCRE_VER=$(curl -s --connect-timeout 15  https://www.pcre.org/|grep 'is at version '|grep -Eo '8\.[0-9]+')
-PCRE_DOWNLOAD_LINK="https://ftp.pcre.org/pub/pcre/pcre-$PCRE_VER.tar.gz"
+PCRE_VER=$(curl -s --connect-timeout 15  https://www.pcre.org/|grep 'is now at version '|grep -Eo '10\.[0-9]+')
+PCRE_DOWNLOAD_LINK="https://ftp.pcre.org/pub/pcre/pcre2-$PCRE_VER.tar.gz"
 
 if [[ ! "$PCRE_VER" =~ ^[0-9]+\.[0-9]+$ ]]
 then
@@ -254,9 +254,9 @@ then
     exit 1
 fi
 
-PCRE_TAR="$INSTALLDIR/pcre-$PCRE_VER.tar.gz"
-PCRE_SRC="$INSTALLDIR/pcre-$PCRE_VER"
-PCRE_INS="$INSTALLDIR/pcre-installation-$PCRE_VER"
+PCRE_TAR="$INSTALLDIR/pcre2-$PCRE_VER.tar.gz"
+PCRE_SRC="$INSTALLDIR/pcre2-$PCRE_VER"
+PCRE_INS="$INSTALLDIR/pcre2-installation-$PCRE_VER"
 
 echo -n "Has pcre-$PCRE_VER been downloaded?..."
 if [ -f "$PCRE_TAR" ] && tar -tf "$PCRE_TAR" > /dev/null
@@ -278,7 +278,7 @@ else
 fi
 
 echo -n "Has pcre-$PCRE_VER been built?..."
-if [ -f "$PCRE_SRC/.libs/libpcre.a" ]
+if [ -f "$PCRE_SRC/.libs/libpcre2-8.a" ]
 then
     echo "Yes"
 else
@@ -289,7 +289,7 @@ else
 fi
 
 echo -n "Has pcre-$PCRE_VER been installed?..."
-if [ "$PCRE_INS/lib/libpcre.a" -nt "$PCRE_SRC/.libs/libpcre.a" ]
+if [ "$PCRE_INS/lib/libpcre2-8.a" -nt "$PCRE_SRC/.libs/libpcre2-8.a" ]
 then
     echo "Yes"
 else
