@@ -721,7 +721,12 @@ then
 BEGIN {
     tmax=max(30,'"$(tput cols)"')
     e="\033["
-    viruscnt='"$(ls "$QUARANTINE_DIR"|wc -l)"'
+
+    # Find provides better support than ls for non-alphanumeric filenames
+    # Excludes dot files and the quarantine log in virus count
+    viruscnt='"$(find "$QUARANTINE_DIR" ! -name '.*' ! -name 'quarantine.log' -type f | grep -c /)"'
+
+
     r="'"$red"'"
     g="'"$green"'"
     y="'"$yellow"'"
