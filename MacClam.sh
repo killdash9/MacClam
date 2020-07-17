@@ -29,7 +29,7 @@ popd > /dev/null
 #
 # You can customize the following variables to suit your tastes.  If
 # you change them, run this script again to apply your settings.
-# 
+#
 
 #The  top level installation directory.  It must not contain spaces or the builds won't work.
 INSTALLDIR="$HOME/MacClam"
@@ -63,13 +63,13 @@ CLAMD_LOG="$MACCLAM_LOG_DIR/clamd.log"
 
 CRONTAB='
 #Start everything up at reboot
-@reboot '$SCRIPTPATH' >> '$CRON_LOG' 2>&1 
+@reboot '$SCRIPTPATH' >> '$CRON_LOG' 2>&1
 
 #Check for updates daily
-@daily  '$SCRIPTPATH' >> '$CRON_LOG' 2>&1 
+@daily  '$SCRIPTPATH' >> '$CRON_LOG' 2>&1
 
 #Scheduled scan, every Sunday morning at 00:00.
-@weekly '$SCRIPTPATH' / >> '$CRON_LOG' 2>&1 
+@weekly '$SCRIPTPATH' / >> '$CRON_LOG' 2>&1
 '
 # End of customizable variables
 
@@ -84,7 +84,7 @@ MacClam.sh quarantine    Open the quarantine folder
 MacClam.sh uninstall     Uninstall MacClam
 MacClam.sh help          Display this message
 
-MacClam.sh [clamdscan args] [FILE|DIRECTORY]...  
+MacClam.sh [clamdscan args] [FILE|DIRECTORY]...
 
 The last form launches clamdscan on specific files or directories, installing if needed.
 
@@ -154,7 +154,7 @@ fi
 
 if [ -t 0 ] #don't do this when we're run from cron
 then
-    
+
 echo
 echo "-----------------------"
 echo " Checking Installation"
@@ -196,7 +196,7 @@ then
     echo "Yes"
 else
     echo "No.  Downloading $OPENSSL_DOWNLOAD_LINK to $OPENSSL_TAR"
-    curl --connect-timeout 3  -L -o "$OPENSSL_TAR" "$OPENSSL_DOWNLOAD_LINK" 
+    curl --connect-timeout 3  -L -o "$OPENSSL_TAR" "$OPENSSL_DOWNLOAD_LINK"
 fi
 
 echo -n "Has openssl-$OPENSSL_VER been extracted?..."
@@ -264,7 +264,7 @@ then
     echo "Yes"
 else
     echo "No.  Downloading $PCRE_DOWNLOAD_LINK to $PCRE_TAR"
-    curl --connect-timeout 15  -L -o "$PCRE_TAR" "$PCRE_DOWNLOAD_LINK" 
+    curl --connect-timeout 15  -L -o "$PCRE_TAR" "$PCRE_DOWNLOAD_LINK"
 fi
 
 echo -n "Has pcre-$PCRE_VER been extracted?..."
@@ -337,7 +337,7 @@ then
     echo "Yes"
 else
     echo "No.  Downloading $CLAMAV_DOWNLOAD_LINK to $CLAMAV_TAR"
-    curl --connect-timeout 3  -L -o "$CLAMAV_TAR" "$CLAMAV_DOWNLOAD_LINK" 
+    curl --connect-timeout 3  -L -o "$CLAMAV_TAR" "$CLAMAV_DOWNLOAD_LINK"
 fi
 
 echo -n "Has clamav-$CLAMAV_VER been extracted?..."
@@ -350,7 +350,7 @@ else
     tar -xf "$CLAMAV_TAR"
 fi
 
-#CFLAGS="-O2 -g -D_FILE_OFFSET_BITS=64" 
+#CFLAGS="-O2 -g -D_FILE_OFFSET_BITS=64"
 #CXXFLAGS="-O2 -g -D_FILE_OFFSET_BITS=64"
 
 echo -n "Has the clamav-$CLAMAV_VER build been configured?..."
@@ -391,7 +391,7 @@ then
     fi
 
     cd "$CLAMAV_INS"
-    
+
     sudo chown -R root:wheel ./etc
     sudo chmod 0775 ./etc
     sudo chmod 0664 ./etc/*
@@ -410,7 +410,7 @@ then
 
     sudo chown -R clamav:clamav ./share/clamav/main* || true
     sudo chmod -R a+r ./share/clamav/main.* || true
-    #sudo touch ./share/clamav/freshclam.log 
+    #sudo touch ./share/clamav/freshclam.log
     #sudo chmod a+rw ./share/clamav/freshclam.log
     sudo chmod u+s ./sbin/clamd
 else
@@ -448,7 +448,7 @@ do
     echo ExcludePath "$p" >> "$TMPFILE"
 done
 
-if cmp -s "$TMPFILE" "$CLAMD_CONF" 
+if cmp -s "$TMPFILE" "$CLAMD_CONF"
 then
     echo Yes
 else
@@ -467,7 +467,7 @@ sed "
 NotifyClamd $CLAMD_CONF\\
 MaxAttempts 1\\
 " "$FRESHCLAM_CONF.sample" > "$TMPFILE"
-if cmp -s "$TMPFILE" "$FRESHCLAM_CONF" 
+if cmp -s "$TMPFILE" "$FRESHCLAM_CONF"
 then
     echo Yes
 else
@@ -511,7 +511,7 @@ then
     echo "Yes"
 else
     echo "No.  Downloading $FSWATCH_DOWNLOAD_LINK"
-    curl -L -o "$FSWATCH_TAR" "$FSWATCH_DOWNLOAD_LINK" 
+    curl -L -o "$FSWATCH_TAR" "$FSWATCH_DOWNLOAD_LINK"
 fi
 
 echo -n "Has fswatch been extracted?..."
@@ -567,7 +567,7 @@ fi
 EOF
 chmod +x "$INSTALLDIR/scaniffile"
 
-fi #end if [ -t 0 ] 
+fi #end if [ -t 0 ]
 
 CLAMD_CONF="$CLAMAV_INS/etc/clamd.conf"
 FRESHCLAM_CONF="$CLAMAV_INS/etc/freshclam.conf"
@@ -658,7 +658,7 @@ FSWATCH_CMD_ARGS=(
 FSWATCH_CMD="$(printf " %q" "${FSWATCH_CMD_ARGS[@]}")"
 
 function runfswatch {
-    cat > "$INSTALLDIR/runfswatch" <<EOF 
+    cat > "$INSTALLDIR/runfswatch" <<EOF
 #!/bin/bash
 #Launches fswatch and sends its output to scaniffile
 $FSWATCH_CMD | while read line; do "$INSTALLDIR/scaniffile" "\$line"; done >> "$MONITOR_LOG" 2>&1
@@ -709,15 +709,15 @@ then
     echo "You can press Control-C to stop viewing activity.  Scanning services will continue running."
     echo
     {
-        tput colors > /dev/null && 
+        tput colors > /dev/null &&
             green="$(tput setaf 2)" &&
             red="$(tput setaf 1)" &&
-            yellow="$(tput setaf 3)" && 
-            cyan="$(tput setaf 6)" && 
+            yellow="$(tput setaf 3)" &&
+            cyan="$(tput setaf 6)" &&
             normal="$(tput sgr0)"
     } || true
-    
-    (tail -0F "$CLAMD_LOG" "$CRON_LOG" "$MONITOR_LOG" | awk '
+
+(tail -0F "$CLAMD_LOG" "$CRON_LOG" "$MONITOR_LOG" | awk '
 BEGIN {
     tmax=max(30,'"$(tput cols)"')
     e="\033["
