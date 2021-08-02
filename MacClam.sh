@@ -1,7 +1,7 @@
 #!/bin/bash
 
-pushd `dirname $0` > /dev/null
-SCRIPTPATH=`pwd`/`basename $0`
+pushd "$(dirname "$0")" > /dev/null
+SCRIPTPATH=$(pwd)/$(basename "$0")
 popd > /dev/null
 
 # This script is an all-in-one solution for ClamAV scanning on a Mac.
@@ -29,7 +29,7 @@ popd > /dev/null
 #
 # You can customize the following variables to suit your tastes.  If
 # you change them, run this script again to apply your settings.
-# 
+#
 
 #The  top level installation directory.  It must not contain spaces or the builds won't work.
 INSTALLDIR="$HOME/MacClam"
@@ -63,19 +63,19 @@ CLAMD_LOG="$MACCLAM_LOG_DIR/clamd.log"
 
 CRONTAB='
 #Start everything up at reboot
-@reboot '$SCRIPTPATH' >> '$CRON_LOG' 2>&1 
+@reboot '$SCRIPTPATH' >> '$CRON_LOG' 2>&1
 
 #Check for updates daily
-@daily  '$SCRIPTPATH' >> '$CRON_LOG' 2>&1 
+@daily  '$SCRIPTPATH' >> '$CRON_LOG' 2>&1
 
 #Scheduled scan, every Sunday morning at 00:00.
-@weekly '$SCRIPTPATH' / >> '$CRON_LOG' 2>&1 
+@weekly '$SCRIPTPATH' / >> '$CRON_LOG' 2>&1
 '
 # End of customizable variables
 
 set -e
 
-if [ "$1" == "help" -o "$1" == "-help" -o  "$1" == "--help" ]
+if [ "$1" == "help" ] || [ "$1" == "-help" ] || [ "$1" == "--help" ]
 then
     echo "Usage:
 
@@ -84,7 +84,7 @@ MacClam.sh quarantine    Open the quarantine folder
 MacClam.sh uninstall     Uninstall MacClam
 MacClam.sh help          Display this message
 
-MacClam.sh [clamdscan args] [FILE|DIRECTORY]...  
+MacClam.sh [clamdscan args] [FILE|DIRECTORY]...
 
 The last form launches clamdscan on specific files or directories, installing if needed.
 
@@ -103,7 +103,7 @@ then
         sudo killall clamd fswatch || true
         echo "Uninstalling from crontab"
         crontab <(cat <(crontab -l|sed '/# BEGIN MACCLAM/,/# END MACCLAM/d;/MacClam/d'));
-        if [ -d "$QUARANTINE_DIR" -a "`ls "$QUARANTINE_DIR" 2>/dev/null`" ]
+        if [ -d "$QUARANTINE_DIR" ] && [ "$(ls "$QUARANTINE_DIR" 2>/dev/null)" ]
         then
             echo "Moving $QUARANTINE_DIR to $HOME/MacClam_quarantine in case there's something you want in there."
             if [ -d "$HOME/MacClam_quarantine" ]
@@ -126,7 +126,7 @@ if [ ! -t 0 ]
 then
 echo
 echo "--------------------------------------------------"
-echo " Starting MacClam.sh `date`"
+echo " Starting MacClam.sh $(date)"
 echo "--------------------------------------------------"
 echo
 fi
@@ -139,9 +139,9 @@ test -f "$CRON_LOG" || touch "$CRON_LOG"
 test -f "$CLAMD_LOG" || touch "$CLAMD_LOG"
 test -f "$MONITOR_LOG" || touch "$MONITOR_LOG"
 test -d "$QUARANTINE_DIR" || { echo "Creating quarantine directory $QUARANTINE_DIR"; mkdir -p "$QUARANTINE_DIR"; }
-test -f "$INSTALLDIR/clamav.ver" && CLAMAV_INS="$INSTALLDIR/clamav-installation-`cat $INSTALLDIR/clamav.ver`"
+test -f "$INSTALLDIR/clamav.ver" && CLAMAV_INS="$INSTALLDIR/clamav-installation-$(cat "$INSTALLDIR/clamav.ver")"
 
-test -f "$INSTALLDIR/fswatch.ver" && FSWATCH_INS="$INSTALLDIR/fswatch-installation-`cat $INSTALLDIR/fswatch.ver`"
+test -f "$INSTALLDIR/fswatch.ver" && FSWATCH_INS="$INSTALLDIR/fswatch-installation-$(cat "$INSTALLDIR/fswatch.ver")"
 
 if [ "$1" == "quarantine" ]
 then
@@ -154,7 +154,7 @@ fi
 
 if [ -t 0 ] #don't do this when we're run from cron
 then
-    
+
 echo
 echo "-----------------------"
 echo " Checking Installation"
@@ -162,7 +162,7 @@ echo "-----------------------"
 echo
 echo -n "What is the latest version of openssl?..."
 
-OPENSSL_DOWNLOAD_LINK=https://www.openssl.org/source/`curl -s https://www.openssl.org/source/|grep -Eo 'openssl-1\.1\.1.{0,2}\.tar.gz'|head -1`
+OPENSSL_DOWNLOAD_LINK=https://www.openssl.org/source/$(curl -s https://www.openssl.org/source/|grep -Eo 'openssl-1\.1\.1.{0,2}\.tar.gz'|head -1)
 OPENSSL_VER="${OPENSSL_DOWNLOAD_LINK#https://www.openssl.org/source/openssl-}"
 OPENSSL_VER="${OPENSSL_VER%.tar.gz}"
 
@@ -174,7 +174,7 @@ fi
 if [ ! "$OPENSSL_VER" ]
 then
     echo "Can't lookup latest openssl version.  Looking for already-installed version."
-    OPENSSL_VER=`cat $INSTALLDIR/openssl.ver`
+    OPENSSL_VER=$(cat "$INSTALLDIR/openssl.ver")
 else
     echo "$OPENSSL_VER"
     echo "$OPENSSL_VER" > "$INSTALLDIR/openssl.ver"
@@ -196,7 +196,7 @@ then
     echo "Yes"
 else
     echo "No.  Downloading $OPENSSL_DOWNLOAD_LINK to $OPENSSL_TAR"
-    curl --connect-timeout 3  -L -o "$OPENSSL_TAR" "$OPENSSL_DOWNLOAD_LINK" 
+    curl --connect-timeout 3  -L -o "$OPENSSL_TAR" "$OPENSSL_DOWNLOAD_LINK"
 fi
 
 echo -n "Has openssl-$OPENSSL_VER been extracted?..."
@@ -231,8 +231,8 @@ else
 fi
 
 echo -n What is the latest version of pcre?...
-PCRE_VER=`curl -s --connect-timeout 15  https://www.pcre.org/|grep 'is at version '|grep -Eo '8\.[0-9]+'`
-PCRE_DOWNLOAD_LINK="https://ftp.pcre.org/pub/pcre/pcre-$PCRE_VER.tar.gz"
+PCRE_VER=$(curl -s --connect-timeout 15  https://www.pcre.org/|grep 'is now at version '|grep -Eo '10\.[0-9]+')
+PCRE_DOWNLOAD_LINK="https://ftp.pcre.org/pub/pcre/pcre2-$PCRE_VER.tar.gz"
 
 if [[ ! "$PCRE_VER" =~ ^[0-9]+\.[0-9]+$ ]]
 then
@@ -242,7 +242,7 @@ fi
 if [ ! "$PCRE_VER" ]
 then
     echo "Can't lookup latest pcre version.  Looking for already-installed version."
-    PCRE_VER=`cat $INSTALLDIR/pcre.ver`
+    PCRE_VER=$(cat "$INSTALLDIR/pcre.ver")
 else
     echo "$PCRE_VER"
     echo "$PCRE_VER" > "$INSTALLDIR/pcre.ver"
@@ -254,9 +254,9 @@ then
     exit 1
 fi
 
-PCRE_TAR="$INSTALLDIR/pcre-$PCRE_VER.tar.gz"
-PCRE_SRC="$INSTALLDIR/pcre-$PCRE_VER"
-PCRE_INS="$INSTALLDIR/pcre-installation-$PCRE_VER"
+PCRE_TAR="$INSTALLDIR/pcre2-$PCRE_VER.tar.gz"
+PCRE_SRC="$INSTALLDIR/pcre2-$PCRE_VER"
+PCRE_INS="$INSTALLDIR/pcre2-installation-$PCRE_VER"
 
 echo -n "Has pcre-$PCRE_VER been downloaded?..."
 if [ -f "$PCRE_TAR" ] && tar -tf "$PCRE_TAR" > /dev/null
@@ -264,7 +264,7 @@ then
     echo "Yes"
 else
     echo "No.  Downloading $PCRE_DOWNLOAD_LINK to $PCRE_TAR"
-    curl --connect-timeout 15  -L -o "$PCRE_TAR" "$PCRE_DOWNLOAD_LINK" 
+    curl --connect-timeout 15  -L -o "$PCRE_TAR" "$PCRE_DOWNLOAD_LINK"
 fi
 
 echo -n "Has pcre-$PCRE_VER been extracted?..."
@@ -278,7 +278,7 @@ else
 fi
 
 echo -n "Has pcre-$PCRE_VER been built?..."
-if [ -f "$PCRE_SRC/.libs/libpcre.a" ]
+if [ -f "$PCRE_SRC/.libs/libpcre2-8.a" ]
 then
     echo "Yes"
 else
@@ -289,7 +289,7 @@ else
 fi
 
 echo -n "Has pcre-$PCRE_VER been installed?..."
-if [ "$PCRE_INS/lib/libpcre.a" -nt "$PCRE_SRC/.libs/libpcre.a" ]
+if [ "$PCRE_INS/lib/libpcre2-8.a" -nt "$PCRE_SRC/.libs/libpcre2-8.a" ]
 then
     echo "Yes"
 else
@@ -302,7 +302,7 @@ echo -n "What is the latest version of clamav?..."
 
 
 #ClamAV stores its version in dns
-CLAMAV_VER=`dig TXT +noall +answer +time=3 +tries=1 current.cvd.clamav.net| sed 's,.*"\([^:]*\):.*,\1,'`
+CLAMAV_VER=$(dig TXT +noall +answer +time=3 +tries=1 current.cvd.clamav.net| sed 's,.*"\([^:]*\):.*,\1,')
 if [[ ! "$CLAMAV_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
 then
     CLAMAV_VER='' #we didn't get a version number
@@ -311,7 +311,7 @@ fi
 if [ ! "$CLAMAV_VER" ]
 then
     echo "Can't lookup latest clamav version.  Looking for already-installed version."
-    CLAMAV_VER=`cat $INSTALLDIR/clamav.ver`
+    CLAMAV_VER=$(cat "$INSTALLDIR/clamav.ver")
 else
     echo "$CLAMAV_VER"
     echo "$CLAMAV_VER" > "$INSTALLDIR/clamav.ver"
@@ -337,7 +337,7 @@ then
     echo "Yes"
 else
     echo "No.  Downloading $CLAMAV_DOWNLOAD_LINK to $CLAMAV_TAR"
-    curl --connect-timeout 3  -L -o "$CLAMAV_TAR" "$CLAMAV_DOWNLOAD_LINK" 
+    curl --connect-timeout 3  -L -o "$CLAMAV_TAR" "$CLAMAV_DOWNLOAD_LINK"
 fi
 
 echo -n "Has clamav-$CLAMAV_VER been extracted?..."
@@ -350,8 +350,8 @@ else
     tar -xf "$CLAMAV_TAR"
 fi
 
-CFLAGS="-O2 -g -D_FILE_OFFSET_BITS=64" 
-CXXFLAGS="-O2 -g -D_FILE_OFFSET_BITS=64"
+#CFLAGS="-O2 -g -D_FILE_OFFSET_BITS=64"
+#CXXFLAGS="-O2 -g -D_FILE_OFFSET_BITS=64"
 
 echo -n "Has the clamav-$CLAMAV_VER build been configured?..."
 if [ -f "$CLAMAV_SRC/Makefile" ]
@@ -391,7 +391,7 @@ then
     fi
 
     cd "$CLAMAV_INS"
-    
+
     sudo chown -R root:wheel ./etc
     sudo chmod 0775 ./etc
     sudo chmod 0664 ./etc/*
@@ -410,7 +410,7 @@ then
 
     sudo chown -R clamav:clamav ./share/clamav/main* || true
     sudo chmod -R a+r ./share/clamav/main.* || true
-    #sudo touch ./share/clamav/freshclam.log 
+    #sudo touch ./share/clamav/freshclam.log
     #sudo chmod a+rw ./share/clamav/freshclam.log
     sudo chmod u+s ./sbin/clamd
 else
@@ -433,7 +433,7 @@ function kill_clamd {
     fi
 }
 echo -n "Is clamd.conf up to date?..."
-TMPFILE=`mktemp -dt "MacClam"`/clamd.conf
+TMPFILE=$(mktemp -dt "MacClam")/clamd.conf
 sed "
 /^Example/d
 \$a\\
@@ -445,10 +445,10 @@ LocalSocket /tmp/clamd.socket\\
 
 for p in "${EXCLUDE_DIR_PATTERNS[@]}"
 do
-    echo ExcludePath $p >> "$TMPFILE"
+    echo ExcludePath "$p" >> "$TMPFILE"
 done
 
-if cmp -s "$TMPFILE" "$CLAMD_CONF" 
+if cmp -s "$TMPFILE" "$CLAMD_CONF"
 then
     echo Yes
 else
@@ -460,14 +460,14 @@ fi
 rm "$TMPFILE"
 
 echo -n "Is freshclam.conf up to date?..."
-TMPFILE=`mktemp -dt "MacClam"`/freshclam.conf
+TMPFILE=$(mktemp -dt "MacClam")/freshclam.conf
 sed "
 /^Example/d
 \$a\\
 NotifyClamd $CLAMD_CONF\\
 MaxAttempts 1\\
 " "$FRESHCLAM_CONF.sample" > "$TMPFILE"
-if cmp -s "$TMPFILE" "$FRESHCLAM_CONF" 
+if cmp -s "$TMPFILE" "$FRESHCLAM_CONF"
 then
     echo Yes
 else
@@ -477,7 +477,7 @@ fi
 rm "$TMPFILE"
 
 echo -n "What is the latest version of fswatch?..."
-FSWATCH_DOWNLOAD_LINK=https://github.com`curl -L -s 'https://github.com/emcrisostomo/fswatch/releases/latest'| grep "/emcrisostomo/fswatch/releases/download/.*tar.gz"|sed 's,.*href *= *"\([^"]*\).*,\1,'`
+FSWATCH_DOWNLOAD_LINK=https://github.com$(curl -L -s 'https://github.com/emcrisostomo/fswatch/releases/latest'| grep "/emcrisostomo/fswatch/releases/download/.*tar.gz"|sed 's,.*href *= *"\([^"]*\).*,\1,')
 FSWATCH_VER="${FSWATCH_DOWNLOAD_LINK#https://github.com/emcrisostomo/fswatch/releases/download/}"
 FSWATCH_VER="${FSWATCH_VER%/fswatch*}"
 
@@ -489,7 +489,7 @@ fi
 if [ ! "$FSWATCH_VER" ]
 then
     echo "Can't lookup latest fswatch version.  Looking for already-installed version."
-    FSWATCH_VER=`cat $INSTALLDIR/fswatch.ver`
+    FSWATCH_VER=$(cat "$INSTALLDIR"/fswatch.ver)
 else
     echo "$FSWATCH_VER"
     echo "$FSWATCH_VER" > "$INSTALLDIR/fswatch.ver"
@@ -511,7 +511,7 @@ then
     echo "Yes"
 else
     echo "No.  Downloading $FSWATCH_DOWNLOAD_LINK"
-    curl -L -o "$FSWATCH_TAR" "$FSWATCH_DOWNLOAD_LINK" 
+    curl -L -o "$FSWATCH_TAR" "$FSWATCH_DOWNLOAD_LINK"
 fi
 
 echo -n "Has fswatch been extracted?..."
@@ -535,7 +535,7 @@ else
 fi
 
 echo -n "Has fswatch been installed?..."
-if [ -d $FSWATCH_INS ]
+if [ -d "$FSWATCH_INS" ]
 then
     echo "Yes"
 else
@@ -567,13 +567,13 @@ fi
 EOF
 chmod +x "$INSTALLDIR/scaniffile"
 
-fi #end if [ -t 0 ] 
+fi #end if [ -t 0 ]
 
 CLAMD_CONF="$CLAMAV_INS/etc/clamd.conf"
 FRESHCLAM_CONF="$CLAMAV_INS/etc/freshclam.conf"
 
 echo -n Is crontab up to date?...
-CURRENT_CRONTAB=`crontab -l |awk '/# BEGIN MACCLAM/,/# END MACCLAM/'`
+CURRENT_CRONTAB=$(crontab -l |awk '/# BEGIN MACCLAM/,/# END MACCLAM/')
 EXPECTED_CRONTAB="# BEGIN MACCLAM
 $CRONTAB
 # END MACCLAM"
@@ -586,7 +586,7 @@ else
         echo No.  Updating it.
         crontab <(cat <(crontab -l|sed '/# BEGIN MACCLAM/,/# END MACCLAM/d;/MacClam/d'); echo "$EXPECTED_CRONTAB")
     else
-        echo No.  Run $0 from the command line to update it.
+        echo No.  Run "$0" from the command line to update it.
     fi
 fi
 
@@ -617,11 +617,11 @@ CLAMD_CMD_ARGS=(
 CLAMD_CMD="$(printf " %q" "${CLAMD_CMD_ARGS[@]}")"
 
 #CLAMD_CMD='$CLAMAV_INS/sbin/clamd --config-file=$CLAMD_CONF'
-if PID=`pgrep clamd`
+if PID=$(pgrep clamd)
 then
     echo Yes
     echo -n Is it the current version?...
-    if [ "`ps -o command= $PID`" == "`eval echo $CLAMD_CMD`" ]
+    if [ "$(ps -o command= "$PID")" == "$(eval echo "$CLAMD_CMD")" ]
     then
         echo Yes
     else
@@ -630,14 +630,14 @@ then
             echo No.  Killing it.
             kill_clamd
             echo "Starting clamd"
-            eval $CLAMD_CMD
+            eval "$CLAMD_CMD"
         else
-            No.  Run $0 from the command line to update it.
+            No.  Run "$0" from the command line to update it.
         fi
     fi
 else
     echo No.  Starting it.
-    eval $CLAMD_CMD
+    eval "$CLAMD_CMD"
 fi
 
 echo -n Is fswatch running?...
@@ -658,7 +658,7 @@ FSWATCH_CMD_ARGS=(
 FSWATCH_CMD="$(printf " %q" "${FSWATCH_CMD_ARGS[@]}")"
 
 function runfswatch {
-    cat > "$INSTALLDIR/runfswatch" <<EOF 
+    cat > "$INSTALLDIR/runfswatch" <<EOF
 #!/bin/bash
 #Launches fswatch and sends its output to scaniffile
 $FSWATCH_CMD | while read line; do "$INSTALLDIR/scaniffile" "\$line"; done >> "$MONITOR_LOG" 2>&1
@@ -668,12 +668,12 @@ EOF
     script -q /dev/null "$INSTALLDIR/runfswatch"
 }
 
-if PID=`pgrep fswatch`
+if PID=$(pgrep fswatch)
 then
     echo Yes
 
     echo -n Is it running the latest version and configuration?...
-    if [ "`ps -o command= $PID`" == "`eval echo $FSWATCH_CMD`" ]
+    if [ "$(ps -o command= "$PID")" == "$(eval echo "$FSWATCH_CMD")" ]
     then
         echo Yes
     else
@@ -683,7 +683,7 @@ then
             sudo killall fswatch
             runfswatch &
         else
-            echo No.  Run $0 from the command line to update it.
+            echo No.  Run "$0" from the command line to update it.
         fi
     fi
 else
@@ -692,7 +692,7 @@ else
 fi
 
 echo
-echo Monitoring ${MONITOR_DIRS[@]}
+echo Monitoring "${MONITOR_DIRS[@]}"
 echo
 if [ "$1" ]
 then
@@ -709,19 +709,24 @@ then
     echo "You can press Control-C to stop viewing activity.  Scanning services will continue running."
     echo
     {
-        tput colors > /dev/null && 
+        tput colors > /dev/null &&
             green="$(tput setaf 2)" &&
             red="$(tput setaf 1)" &&
-            yellow="$(tput setaf 3)" && 
-            cyan="$(tput setaf 6)" && 
+            yellow="$(tput setaf 3)" &&
+            cyan="$(tput setaf 6)" &&
             normal="$(tput sgr0)"
     } || true
-    
-    (tail -0F "$CLAMD_LOG" "$CRON_LOG" "$MONITOR_LOG" | awk '
+
+(tail -0F "$CLAMD_LOG" "$CRON_LOG" "$MONITOR_LOG" | awk '
 BEGIN {
-    tmax=max(30,'"`tput cols`"')
+    tmax=max(30,'"$(tput cols)"')
     e="\033["
-    viruscnt='"`ls $QUARANTINE_DIR|wc -l`"'
+
+    # Find provides better support than ls for non-alphanumeric filenames
+    # Excludes dot files and the quarantine log in virus count
+    viruscnt='"$(find "$QUARANTINE_DIR" ! -name '.*' ! -name 'quarantine.log' -type f | grep -c /)"'
+
+
     r="'"$red"'"
     g="'"$green"'"
     y="'"$yellow"'"
@@ -755,12 +760,12 @@ BEGIN {
         sub(/OK$/,g"OK"n,file)
         printf "%s...%s\r",dir,file
     }
-    fflush;next
+    flush;next
 }
 /SelfCheck: Database status OK./ {
     filename()
     printf e"K%."tmax"s\r",$0
-    fflush;next
+    flush;next
 }
 /^==> / {
     if (pf) {
@@ -770,7 +775,7 @@ BEGIN {
         printf c "%."tmax"s\n" n,f=$0
         pf=1
     }
-    fflush;next
+    flush;next
 }
 !/^ *$/ {
     sub(/ERROR/,r"ERROR"n)
@@ -799,7 +804,7 @@ if [ ! -t 0 ]
 then
 echo
 echo "--------------------------------------------------"
-echo " Finished MacClam.sh `date`"
+echo " Finished MacClam.sh $(date)"
 echo "--------------------------------------------------"
 echo
 fi
