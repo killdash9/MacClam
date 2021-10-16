@@ -760,12 +760,12 @@ BEGIN {
         sub(/OK$/,g"OK"n,file)
         printf "%s...%s\r",dir,file
     }
-    flush;next
+    fflush;next
 }
 /SelfCheck: Database status OK./ {
     filename()
     printf e"K%."tmax"s\r",$0
-    flush;next
+    fflush;next
 }
 /^==> / {
     if (pf) {
@@ -775,7 +775,7 @@ BEGIN {
         printf c "%."tmax"s\n" n,f=$0
         pf=1
     }
-    flush;next
+    fflush;next
 }
 !/^ *$/ {
     sub(/ERROR/,r"ERROR"n)
