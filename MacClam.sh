@@ -232,7 +232,7 @@ fi
 
 echo -n What is the latest version of pcre?...
 PCRE_VER=$(curl -s --connect-timeout 15  https://www.pcre.org/|grep 'is now at version '|grep -Eo '10\.[0-9]+')
-PCRE_DOWNLOAD_LINK="https://ftp.pcre.org/pub/pcre/pcre2-$PCRE_VER.tar.gz"
+PCRE_DOWNLOAD_LINK="https://github.com/PhilipHazel/pcre2/releases/download/pcre2-$PCRE_VER/pcre2-$PCRE_VER.tar.gz"
 
 if [[ ! "$PCRE_VER" =~ ^[0-9]+\.[0-9]+$ ]]
 then
