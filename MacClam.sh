@@ -632,7 +632,7 @@ then
             echo "Starting clamd"
             eval "$CLAMD_CMD"
         else
-            No.  Run "$0" from the command line to update it.
+            echo No.  Run "$0" from the command line to update it.
         fi
     fi
 else

@@ -1,12 +1,5 @@
 name: 'ShellCheck'
-
-on:
-  push:
-    branches:
-      - '*'
-    paths-ignore:
-      - README.md
-  workflow_dispatch:
+on: [push, pull_request]
 
 jobs:
   shellcheck:
