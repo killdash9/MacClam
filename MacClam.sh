@@ -600,7 +600,7 @@ if [ -t 0 ]
 then
     "$CLAMAV_INS/bin/freshclam" --config-file="$FRESHCLAM_CONF" || true
 else
-    "$CLAMAV_INS/bin/freshclam "--quiet --config-file="$FRESHCLAM_CONF" || true
+    "$CLAMAV_INS/bin/freshclam" --quiet --config-file="$FRESHCLAM_CONF" || true
 fi
 
 echo
